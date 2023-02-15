@@ -2,7 +2,7 @@ import { PrismaClient } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
-const demo: String = `
+const demo = `
 import { assert, method, prop, SmartContract } from 'scrypt-ts'
 
 export class Demo extends SmartContract {
@@ -41,36 +41,37 @@ export class Demo extends SmartContract {
 `
 
 const entryData: any = [
-  {
-    scriptHash: '0000000000000000000000000000000000000000000000000000000000000000',
-    Src: {
-      create: [
-        {
-          fName: 'demo.ts',
-          code: demo, 
+    {
+        scriptHash:
+            '0000000000000000000000000000000000000000000000000000000000000000',
+        Src: {
+            create: [
+                {
+                    fName: 'demo.ts',
+                    code: demo,
+                },
+            ],
         },
-      ],
     },
-  }
 ]
 
 async function main() {
-  console.log(`Start seeding ...`)
-  for (const e of entryData) {
-    const entry = await prisma.entry.create({
-      data: e,
-    })
-    console.log(`Created entry with id: ${entry.id}`)
-  }
-  console.log(`Seeding finished.`)
+    console.log(`Start seeding ...`)
+    for (const e of entryData) {
+        const entry = await prisma.entry.create({
+            data: e,
+        })
+        console.log(`Created entry with id: ${entry.id}`)
+    }
+    console.log(`Seeding finished.`)
 }
 
 main()
-  .then(async () => {
-    await prisma.$disconnect()
-  })
-  .catch(async (e) => {
-    console.error(e)
-    await prisma.$disconnect()
-    process.exit(1)
-  })
+    .then(async () => {
+        await prisma.$disconnect()
+    })
+    .catch(async (e) => {
+        console.error(e)
+        await prisma.$disconnect()
+        process.exit(1)
+    })
