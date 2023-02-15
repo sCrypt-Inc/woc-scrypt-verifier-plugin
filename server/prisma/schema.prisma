@@ -1,0 +1,28 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+//datasource db {
+//  provider = "sqlite"
+//  url      = "file:./dev.db"
+//}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Entry {
+  id         Int      @id @default(autoincrement())
+  scriptHash String
+  timeAdded  DateTime @default(now())
+  Src        Src[]
+}
+
+model Src {
+  id      Int    @id @default(autoincrement())
+  entry   Entry  @relation(fields: [entryId], references: [id])
+  entryId Int
+  fName   String
+  code    String
+}

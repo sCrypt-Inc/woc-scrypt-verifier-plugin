@@ -1,33 +1,104 @@
-import express, { Request, Response, NextFunction } from 'express'
-import path from 'path'
-import bodyParser from 'body-parser'
-import { fileURLToPath } from 'url'
+import { PrismaClient } from '@prisma/client'
+import cors from 'cors'
+import express from 'express'
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
-
+const prisma = new PrismaClient()
 const app = express()
 
-// Body parser middleware
-app.use(bodyParser.urlencoded({ extended: false }))
-app.use(bodyParser.json())
+app.use(express.json())
+app.use(cors())
 
-// Serve static files from the React app
-app.use(express.static(path.join(__dirname, 'client/build')))
-
-// API routes
-app.get('/api/hello', (req: Request, res: Response, next: NextFunction) => {
-    console.log(req, res, next)
-    res.send('Hello from the server!')
+app.get('/drafts', async (req, res) => {
+  const posts = await prisma.post.findMany({
+    where: { published: false },
+    include: { author: true }
+  })
+  res.json(posts)
 })
 
-// Catch-all route for serving the React app
-app.get('*', (req: Request, res: Response, next: NextFunction) => {
-    console.log(req, res, next)
-    res.sendFile(path.join(__dirname, '/client/build/index.html'))
+app.get('/feed', async (req, res) => {
+  const posts = await prisma.post.findMany({
+    where: { published: true },
+    include: { author: true }
+  })
+  res.json(posts)
 })
 
-const port = process.env.PORT || 5000
-app.listen(port, () => {
-    console.log(`Server listening on port ${port}`)
+app.get('/filterPosts', async (req, res) => {
+  const { searchString }: { searchString?: string } = req.query;
+  const filteredPosts = await prisma.post.findMany({
+    where: {
+      OR: [
+        {
+          title: {
+            contains: searchString,
+          },
+        },
+        {
+          content: {
+            contains: searchString,
+          },
+        },
+      ],
+    },
+  })
+  res.json(filteredPosts)
 })
+
+app.post(`/post`, async (req, res) => {
+  const { title, content, authorEmail } = req.body
+  const result = await prisma.post.create({
+    data: {
+      title,
+      content,
+      published: false,
+      author: { connect: { email: authorEmail } },
+    },
+  })
+  res.json(result)
+})
+
+app.delete(`/post/:id`, async (req, res) => {
+  const { id } = req.params
+  const post = await prisma.post.delete({
+    where: {
+      id: Number(id),
+    },
+  })
+  res.json(post)
+})
+
+app.get(`/post/:id`, async (req, res) => {
+  const { id } = req.params
+  const post = await prisma.post.findUnique({
+    where: {
+      id: Number(id),
+    },
+    include: { author: true }
+  })
+  res.json(post)
+})
+
+app.put('/publish/:id', async (req, res) => {
+  const { id } = req.params
+  const post = await prisma.post.update({
+    where: { id: Number(id) },
+    data: { published: true },
+  })
+  res.json(post)
+})
+
+app.post(`/user`, async (req, res) => {
+  const result = await prisma.user.create({
+    data: {
+      ...req.body,
+    },
+  })
+  res.json(result)
+})
+
+const server = app.listen(8001, () =>
+  console.log(
+    '🚀 Server ready at: http://localhost:3001',
+  ),
+)
