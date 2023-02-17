@@ -42,6 +42,8 @@ export class Demo extends SmartContract {
 
 const entryData: any = [
     {
+        txid: '0000000000000000000000000000000000000000000000000000000000000000',
+        vout: 0,
         scriptHash:
             '0000000000000000000000000000000000000000000000000000000000000000',
         Src: {

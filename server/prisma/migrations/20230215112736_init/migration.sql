@@ -1,6 +1,8 @@
 -- CreateTable
 CREATE TABLE "Entry" (
     "id" SERIAL NOT NULL,
+    "txid" TEXT NOT NULL,
+    "vout" INTEGER NOT NULL,
     "scriptHash" TEXT NOT NULL,
     "timeAdded" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 

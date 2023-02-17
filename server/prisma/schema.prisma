@@ -14,6 +14,8 @@ datasource db {
 
 model Entry {
   id         Int      @id @default(autoincrement())
+  txid       String
+  vout       Int
   scriptHash String
   timeAdded  DateTime @default(now())
   Src        Src[]
