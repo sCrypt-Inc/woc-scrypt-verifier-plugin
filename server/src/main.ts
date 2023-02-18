@@ -3,6 +3,12 @@ import cors from 'cors'
 import express from 'express'
 import fetch from 'npm-registry-fetch'
 import getScriptTemplate from './project.js'
+import axios, { AxiosResponse } from 'axios'
+import dotenv from 'dotenv'
+
+dotenv.config()
+
+const SERVER_PORT = process.env.SERVER_PORT || '8001'
 
 const prisma = new PrismaClient()
 const app = express()
@@ -11,10 +17,10 @@ app.use(express.json())
 app.use(cors())
 
 // Will check wether the specified TX output already has verified code.
-app.get('/:network/:txid/:vout', async (req, res) => {
+app.get('/:network/:txid/:voutIdx', async (req, res) => {
     const network: string = req.params.network
     const txid: string = req.params.txid.toLowerCase()
-    const vout = Number(req.params.vout)
+    const voutIdx = Number(req.params.voutIdx)
 
     // Check network.
     if (network != 'main' && network != 'test') {
@@ -28,7 +34,7 @@ app.get('/:network/:txid/:vout', async (req, res) => {
     }
 
     // Check vout.
-    if (!(0 <= vout && vout < 2 ** (9 * 8))) {
+    if (!(0 <= voutIdx && voutIdx < 2 ** (9 * 8))) {
         return res.status(400).send('Invalid vout.')
     }
 
@@ -43,20 +49,20 @@ app.get('/:network/:txid/:vout', async (req, res) => {
     }
 
     // Fetch most recent result from DB and respond.
-    const mostRecent = await getMostRecentEntry(txid, vout)
+    const mostRecent = await getMostRecentEntry(network, txid, voutIdx)
     if (!mostRecent) {
         return res.status(404).send('No verified code for this output.')
     }
 
-    return res.json(mostRecent) // TODO: format
+    return res.json(mostRecent)
 })
 
 // Verifies that passed smart contract code produces the correct script
 // corresponding to the specified TX output. If valid, stores entry in DB.
-app.post('/:network/:txid/:vout', async (req, res) => {
+app.post('/:network/:txid/:voutIdx', async (req, res) => {
     const network: string = req.params.network
     const txid: string = req.params.txid.toLowerCase()
-    const vout = Number(req.params.vout)
+    const voutIdx = Number(req.params.voutIdx)
 
     // Check network.
     if (network != 'main' && network != 'test') {
@@ -70,8 +76,8 @@ app.post('/:network/:txid/:vout', async (req, res) => {
     }
 
     // Check vout.
-    if (!(0 <= vout && vout < 2 ** (9 * 8))) {
-        return res.status(400).send('Invalid vout.')
+    if (!(0 <= voutIdx && voutIdx < 2 ** (9 * 8))) {
+        return res.status(400).send('Invalid vout idx.')
     }
 
     // Check if scrypt-ts version was specified.
@@ -92,44 +98,69 @@ app.post('/:network/:txid/:vout', async (req, res) => {
     }
 
     // Check if DB already has an entry.
-    // If so, respond with this entry.
-    const mostRecent = await getMostRecentEntry(txid, vout)
+    const mostRecent = await getMostRecentEntry(network, txid, voutIdx)
     if (mostRecent) {
-        return res.json(mostRecent) // TODO: format
+        return res.json('Entry already exists.')
     }
 
     const scriptTemplate = await getScriptTemplate(body.code, scryptTSVersion)
 
     // Get script template and substitute constructor params
-    const script = applyConstructorParams(
-        scriptTemplate,
-        body.abiConstructorParams
-    )
+    let script: string
+    try {
+        script = applyConstructorParams(
+            scriptTemplate,
+            body.abiConstructorParams
+        )
+    } catch (e) {
+        return res.status(400).send(e.toString())
+    }
 
-    // TODO: Fetch original script from WoC and read compiled one from the fs.
+    // Fetch original script from WoC and compare with the generated one.
+    // TODO: Test with large transactions.
+    const fetchURL = `https://api.whatsonchain.com/v1/bsv/${network}/tx/hash/${txid}`
+    let fetchResp: AxiosResponse
+    try {
+        fetchResp = await axios.get(fetchURL)
+    } catch (e) {
+        return res.status(400).send('Could not find original transaction.')
+    }
 
-    // TODO: Normalize (remove OP_RETURN data?) both scripts and compare them.
+    if (voutIdx >= fetchResp.data.vout.lenght) {
+        return res.status(400).send('Invalid vout idx.')
+    }
 
-    // TODO: Respond w/ err if failed.
+    if (script != fetchResp.data.vout[voutIdx].scriptPubKey.hex) {
+        return res.status(400).send('Script mismatch.')
+    }
 
-    // TODO: Add new entry to DB and respond normally.
-
-    return res.json({})
+    // Add new entry to DB and respond normally.
+    const newEntry = addEntry(network, txid, voutIdx, body.code, 'main.ts') // TODO: fName
+    return res.json(newEntry)
 })
 
-// TODO: Make port configurable.
-app.listen(8001, () => console.log('🚀 Server ready at: http://localhost:8001'))
+app.listen(SERVER_PORT, () =>
+    console.log(`🚀 Server ready at: http://localhost:${SERVER_PORT}`)
+)
 
 async function getLatestPackageVersion(packageName: string): Promise<string> {
     const metadata = await fetch.json(`/${packageName}/latest`)
     return metadata.version
 }
 
-async function getMostRecentEntry(txid: string, vout: number) {
+async function getMostRecentEntry(
+    network: string,
+    txid: string,
+    voutIdx: number
+) {
     const entry = await prisma.entry.findFirst({
         where: {
             txid: txid,
-            vout: vout,
+            voutIdx: voutIdx,
+            network: network,
+        },
+        include: {
+            src: true,
         },
         orderBy: {
             timeAdded: 'desc',
@@ -138,11 +169,36 @@ async function getMostRecentEntry(txid: string, vout: number) {
     return entry
 }
 
+async function addEntry(
+    network: string,
+    txid: string,
+    voutIdx: number,
+    code: string,
+    fName: string
+) {
+    const newEntry = await prisma.entry.create({
+        data: {
+            network: network,
+            txid: txid,
+            voutIdx: voutIdx,
+            src: {
+                create: [
+                    {
+                        fName: fName,
+                        code: code,
+                    },
+                ],
+            },
+        },
+    })
+    return newEntry
+}
+
 function applyConstructorParams(
     scriptTemplate: string,
     constructorParams: string[]
 ): string {
-    const numParams = scriptTemplate.match(/<.*>/).length
+    const numParams = (scriptTemplate.match(/<.*?>/g) || []).length
     if (numParams != constructorParams.length) {
         throw new Error('Invalid number of constructor params.')
     }

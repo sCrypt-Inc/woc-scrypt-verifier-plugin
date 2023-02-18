@@ -14,11 +14,11 @@ datasource db {
 
 model Entry {
   id         Int      @id @default(autoincrement())
+  network    String
   txid       String
-  vout       Int
-  scriptHash String
+  voutIdx    Int
   timeAdded  DateTime @default(now())
-  Src        Src[]
+  src        Src[]
 }
 
 model Src {

@@ -1,40 +1,51 @@
 import requests
 import json
 
-txid = '320ba9fb3826c0bc66beed51edf2463e958b7274921563c5c90be62deabb725f'
-vout = 0
+txid = '8e36519052a7090b9958781a71cab9c35564de947b4050ea853d91d2b846b683'
+vout_idx = 0
 network = 'test'
-url = 'http://localhost:8001/{}/{}/{}'.format(network, txid, vout)
+url = 'http://localhost:8001/{}/{}/{}'.format(network, txid, vout_idx)
 
 code = '''
-import { SmartContract, method, prop, assert } from "scrypt-ts"
+import { method, prop, SmartContract, assert, bsv, UTXO } from 'scrypt-ts'
 
-class Demo extends SmartContract {
-  @prop()
-  readonly x: bigint
+class MyProject extends SmartContract {
+    @prop()
+    x: bigint
 
-  constructor(x: bigint) {
-    super(...arguments)
-    this.x = x
-  }
+    @prop()
+    y: bigint
 
-  @method()
-  public unlock(x: bigint) {
-    assert(this.add(this.x, 1n) == x, 'incorrect sum')
-  }
+    constructor(x: bigint, y: bigint) {
+        super(x, y)
+        this.x = x
+        this.y = y
+    }
 
-  @method()
-  add(x0: bigint, x1:bigint) : bigint {
-    return x0 + x1
-  }
+    @method()
+    sum(a: bigint, b: bigint): bigint {
+        return a + b
+    }
+
+    @method()
+    public add(z: bigint) {
+        assert(z == this.sum(this.x, this.y))
+    }
+
+    @method()
+    public sub(z: bigint) {
+        assert(z == this.x - this.y)
+    }
+
 }
+
 '''
 
 # Define the data to be sent in the request body
 payload = {
     'code': code,
     'abiConstructorParams': [
-        '01'
+        '51', '52'
     ]
 }
 
@@ -48,5 +59,11 @@ headers = {'Content-Type': 'application/json'}
 response = requests.post(url, data=payload_json, headers=headers)
 
 # Print the response status code and text
-print(f'Response status code: {response.status_code}')
-print(f'Response text: {response.text}')
+print(f'POST response status code: {response.status_code}')
+print(f'POST response text: {response.text}')
+
+response = requests.get(url, headers=headers)
+
+print(f'GET response status code: {response.status_code}')
+print(f'GET response text: {response.text}')
+

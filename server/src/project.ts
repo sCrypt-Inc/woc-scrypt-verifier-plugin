@@ -20,7 +20,7 @@ export default async function getScriptTemplate(
     // TODO: Make sure to completely remove all generated files, even if
     //       an exception does occur.
 
-    const baseDir = os.tmpdir()  // TODO: Make configurable via dotenv
+    const baseDir = os.tmpdir() // TODO: Make configurable via dotenv
 
     const targetDir = path.join(baseDir, randHexStr(16) + '_woc-scrypt')
     const srcDir = path.join(targetDir, 'src')

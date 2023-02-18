@@ -42,11 +42,10 @@ export class Demo extends SmartContract {
 
 const entryData: any = [
     {
+        network: 'test',
         txid: '0000000000000000000000000000000000000000000000000000000000000000',
-        vout: 0,
-        scriptHash:
-            '0000000000000000000000000000000000000000000000000000000000000000',
-        Src: {
+        voutIdx: 0,
+        src: {
             create: [
                 {
                     fName: 'demo.ts',
