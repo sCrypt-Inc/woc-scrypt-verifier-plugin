@@ -4,6 +4,7 @@ CREATE TABLE "Entry" (
     "network" TEXT NOT NULL,
     "txid" TEXT NOT NULL,
     "voutIdx" INTEGER NOT NULL,
+    "scryptTSVersion" TEXT NOT NULL,
     "timeAdded" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Entry_pkey" PRIMARY KEY ("id")

@@ -45,6 +45,7 @@ const entryData: any = [
         network: 'test',
         txid: '0000000000000000000000000000000000000000000000000000000000000000',
         voutIdx: 0,
+        scryptTSVersion: '0.1.6-beta.7',
         src: {
             create: [
                 {

@@ -17,6 +17,7 @@ model Entry {
   network    String
   txid       String
   voutIdx    Int
+  scryptTSVersion       String
   timeAdded  DateTime @default(now())
   src        Src[]
 }

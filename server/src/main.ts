@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client'
+import { Entry, PrismaClient } from '@prisma/client'
 import cors from 'cors'
 import express from 'express'
 import fetch from 'npm-registry-fetch'
@@ -13,8 +13,8 @@ const SERVER_PORT = process.env.SERVER_PORT || '8001'
 const prisma = new PrismaClient()
 const app = express()
 
-app.use(express.json())
 app.use(cors())
+app.use(express.json())
 
 // Will check wether the specified TX output already has verified code.
 app.get('/:network/:txid/:voutIdx', async (req, res) => {
@@ -38,18 +38,26 @@ app.get('/:network/:txid/:voutIdx', async (req, res) => {
         return res.status(400).send('Invalid vout.')
     }
 
-    // Check if scrypt-ts version was specified.
-    // If not, query the latest one from NPM.
-    let scrytpTSVersion = req.query.ver
-    if (!scrytpTSVersion) {
-        scrytpTSVersion = await getLatestPackageVersion('scrypt-ts')
-    }
-    if (typeof scrytpTSVersion !== 'string') {
-        return res.status(400).send('Invalid scrypt-ts version.')
+    // Fetch most recent result from DB and respond.
+    const scryptTSVersion = req.query.ver
+    if (
+        typeof scryptTSVersion !== 'string' &&
+        typeof scryptTSVersion !== 'undefined'
+    ) {
+        return res.status(400).send('Invalid scrypt-ts version format.')
     }
 
-    // Fetch most recent result from DB and respond.
-    const mostRecent = await getMostRecentEntry(network, txid, voutIdx)
+    let mostRecent: Entry
+    if (scryptTSVersion) {
+        mostRecent = await getMostRecentEntry(
+            network,
+            txid,
+            voutIdx,
+            scryptTSVersion
+        )
+    } else {
+        mostRecent = await getMostRecentEntry(network, txid, voutIdx)
+    }
     if (!mostRecent) {
         return res.status(404).send('No verified code for this output.')
     }
@@ -135,7 +143,14 @@ app.post('/:network/:txid/:voutIdx', async (req, res) => {
     }
 
     // Add new entry to DB and respond normally.
-    const newEntry = addEntry(network, txid, voutIdx, body.code, 'main.ts') // TODO: fName
+    const newEntry = addEntry(
+        network,
+        txid,
+        voutIdx,
+        scryptTSVersion,
+        body.code,
+        'main.ts'
+    ) // TODO: fName
     return res.json(newEntry)
 })
 
@@ -151,28 +166,44 @@ async function getLatestPackageVersion(packageName: string): Promise<string> {
 async function getMostRecentEntry(
     network: string,
     txid: string,
-    voutIdx: number
+    voutIdx: number,
+    scryptTSVersion?: string
 ) {
-    const entry = await prisma.entry.findFirst({
-        where: {
-            txid: txid,
-            voutIdx: voutIdx,
-            network: network,
-        },
-        include: {
-            src: true,
-        },
-        orderBy: {
-            timeAdded: 'desc',
-        },
-    })
-    return entry
+    if (typeof scryptTSVersion !== 'undefined') {
+        return await prisma.entry.findFirst({
+            where: {
+                txid: txid,
+                voutIdx: voutIdx,
+                network: network,
+                scryptTSVersion: scryptTSVersion,
+            },
+            include: {
+                src: true,
+            },
+            orderBy: {
+                timeAdded: 'desc',
+            },
+        })
+    } else {
+        return await prisma.entry.findFirst({
+            where: {
+                txid: txid,
+                voutIdx: voutIdx,
+                network: network,
+            },
+            include: {
+                src: true,
+            },
+            orderBy: [{ scryptTSVersion: 'desc' }, { timeAdded: 'desc' }],
+        })
+    }
 }
 
 async function addEntry(
     network: string,
     txid: string,
     voutIdx: number,
+    scryptTSVersion: string,
     code: string,
     fName: string
 ) {
@@ -181,6 +212,7 @@ async function addEntry(
             network: network,
             txid: txid,
             voutIdx: voutIdx,
+            scryptTSVersion: scryptTSVersion,
             src: {
                 create: [
                     {
