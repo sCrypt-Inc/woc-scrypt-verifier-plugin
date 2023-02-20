@@ -90,6 +90,7 @@ app.post('/:network/:txid/:voutIdx', async (req, res) => {
 
     // Check if scrypt-ts version was specified.
     // If not, query the latest one from NPM.
+    // TODO: Pass via JSON body?
     let scryptTSVersion = req.query.ver
     if (!scryptTSVersion) {
         scryptTSVersion = await getLatestPackageVersion('scrypt-ts')
@@ -105,13 +106,14 @@ app.post('/:network/:txid/:voutIdx', async (req, res) => {
         return res.status(400).send('Invalid request body.')
     }
 
-    // Check if DB already has an entry.
-    const mostRecent = await getMostRecentEntry(network, txid, voutIdx)
-    if (mostRecent) {
-        return res.json('Entry already exists.')
+    let scriptTemplate: string
+    try {
+        scriptTemplate = await getScriptTemplate(body.code, scryptTSVersion)
+    } catch (e) {
+        return res
+            .status(400)
+            .send('Something went wrong when building the smart contract.')
     }
-
-    const scriptTemplate = await getScriptTemplate(body.code, scryptTSVersion)
 
     // Get script template and substitute constructor params
     let script: string

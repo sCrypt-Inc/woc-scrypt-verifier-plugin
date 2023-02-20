@@ -20,11 +20,21 @@ function App() {
   useEffect(() => {
     const fetchData = async () => {
       const response = await fetch(apiURL, { mode: 'cors' });
-      const jsonData = await response.json();
-      setDataApiResp({
-        status: response.status,
-        data: jsonData
-      });
+      if (response.ok) {
+        const jsonData = await response.json();
+        console.log(jsonData)
+        setDataApiResp({
+          ok: response.ok,
+          status: response.status,
+          data: jsonData
+        });
+      } else {
+        setDataApiResp({
+          ok: response.ok,
+          status: response.status,
+          data: {}
+        });
+      }
     };
     fetchData();
   }, []);
@@ -36,7 +46,7 @@ function App() {
       <div>
         {apiResp
           ? <>
-            {apiResp.status == 200
+            {apiResp.ok
               ? <Entry entryData={apiResp.data} />
               : <New />
             }
