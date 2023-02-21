@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import TextareaAutosize from 'react-textarea-autosize';
 import { useParams } from "react-router-dom";
 import configDefault from './configDefault.json'
+import GridLoader from "react-spinners/GridLoader";
 
 import './App.css';
 
@@ -17,7 +18,7 @@ const apiURL = process.env.REACT_APP_SERVER_URL || configDefault.SERVER_URL;
 function New() {
   const { network, txid, voutIdx } = useParams();
 
-  const [scryptTSVersion, setSelectedOptionScryptTSVersion] = useState('');
+  const [scryptTSVersion, setSelectedOptionScryptTSVersion] = useState(scryptTSVersions[0]);
   const [code, setCodeInput] = useState('');
   const [abiConstructorParams, setAbiParamsInput] = useState(['']);
 
@@ -47,9 +48,10 @@ function New() {
   }
 
   const handleSubmit = async (event: any) => {
-    event.preventDefault();
+    event.preventDefault()
 
-    setLoading(true);
+    setErrMsg('')
+    setLoading(true)
 
     // TODO: Do a sanity check on all input data
 
@@ -57,7 +59,7 @@ function New() {
       code: code,
       abiConstructorParams: abiConstructorParams
     }
-
+    
     const response = await fetch(apiSubmitURL + '?ver=' + scryptTSVersion,
       {
         method: "POST",
@@ -79,9 +81,9 @@ function New() {
   }
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={handleSubmit} className="mainDiv">
       <label>
-        Select scrypt-ts version:
+        Select scrypt-ts version:<br /> 
         <select value={scryptTSVersion} onChange={handleDropdownChangeScryptTSVersion}>
           {
             (() => {
@@ -101,8 +103,9 @@ function New() {
       <label>
         Enter smart contract code: <br />
         <TextareaAutosize
-          style={{ width: '500px' }}
+          className='textInput'
           minRows={10}
+          maxRows={30}
           onChange={handleCodeChange}
         />
       </label>
@@ -110,16 +113,24 @@ function New() {
       <label>
         Enter ABI-encoded constructor parameters: <br />
         <TextareaAutosize // TODO: Add hint
-          style={{ width: '300px' }}
+          className='textInput'
           minRows={1}
+          maxRows={3}
           onChange={handleAbiParamsChange}
         />
       </label>
       <br />
-      <button type="submit">Submit</button>
+      <button className='submitButton' type="submit">Submit</button>
       <br />
-      {loading && <p>Loading...</p>}
-      {errMsg && <p>{errMsg}</p>}
+      <GridLoader
+        color={'#6976d9'}
+        loading={loading}
+        //cssOverride={override}
+        size={10}
+        aria-label="Loading Spinner"
+        data-testid="loader"
+      />
+      {errMsg && <div className='error'>{errMsg}</div>}
     </form>
   );
 }

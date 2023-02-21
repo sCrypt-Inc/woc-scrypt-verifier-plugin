@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useLocation } from "react-router-dom";
 import configDefault from './configDefault.json'
+import GridLoader from "react-spinners/GridLoader";
 
 import Entry from './Entry';
 import New from './New';
@@ -39,11 +40,17 @@ function App() {
     fetchData();
   }, []);
 
+  const loadCssOverride = {
+    "display": "block",
+    "margin-left": "auto",
+    "margin-right": "auto",
+  }
+
   if (query.get('new') == 'true') {
-    return ( <New /> );
+    return (<New />);
   } else {
     return (
-      <div>
+      <div className='mainDiv'>
         {apiResp
           ? <>
             {apiResp.ok
@@ -51,7 +58,17 @@ function App() {
               : <New />
             }
           </>
-          : <p>Loading...</p>
+          :
+          <GridLoader
+            color={'#6976d9'}
+            loading={true}
+            //cssOverride={override}
+            size={10}
+            aria-label="Loading Spinner"
+            data-testid="loader"
+            cssOverride={loadCssOverride}
+          />
+
         }
       </div>
     );

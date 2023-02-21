@@ -11,12 +11,12 @@ function Entry(props: any) {
 
   return (
     <div>
-      <b>Network:</b> {props.entryData.network}
-      <br />
-      <b>ScryptTS version:</b> {props.entryData.scryptTSVersion}
-      <br />
-      <b>Source files:</b>
-      <br />
+      <p>
+        <b>ScryptTS version:</b><br />{props.entryData.scryptTSVersion}
+      </p>
+      <p>
+        <b>Source files:</b>
+      </p>
       {
         (() => {
           let container: any = [];
@@ -40,7 +40,7 @@ function Entry(props: any) {
       }
       <br />
       <Link to={newEntryRedirectURL}>
-        <button>Submit new code</button>
+        <button className="submitButton" >Submit new code</button>
       </Link>
     </div>
   );

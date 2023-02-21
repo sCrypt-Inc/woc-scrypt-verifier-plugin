@@ -17,6 +17,7 @@ export default async function getScriptTemplate(
     sourceCode: string,
     scryptTSVersion: string
 ): Promise<string> {
+    // TODO: Sandbox!!!
     // TODO: Make sure to completely remove all generated files, even if
     //       an exception does occur.
 
@@ -52,6 +53,8 @@ export default async function getScriptTemplate(
 
     // Build TS code.
     execSync('npm run build', { cwd: targetDir })
+
+    // TODO: Prettify code.
 
     // Compile resulting .scrypt file.
     const outDir = path.join(targetDir, 'scrypts', 'src')

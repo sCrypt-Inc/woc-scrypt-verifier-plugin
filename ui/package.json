@@ -18,7 +18,8 @@
     "web-vitals": "^2.1.4",
     "react-textarea-autosize": "^8.4.0",
     "react-router-dom": "^6.8.1",
-    "react-code-blocks": "^0.0.9-0"
+    "react-code-blocks": "^0.0.9-0",
+    "react-spinners": "^0.13.8"
   },
   "scripts": {
     "start": "react-scripts start",
