@@ -1,0 +1,33 @@
+version: '3'
+
+services:
+  ui:
+    build:
+      context: ./ui
+      dockerfile: Dockerfile
+    ports:
+      - '127.0.0.1:3000:3000'
+    environment:
+      - REACT_APP_SERVER_URL=http://api:8080
+
+  express-app:
+    build:
+      context: ./express-app
+      dockerfile: Dockerfile
+    ports:
+      - '127.0.0.1:3001:5000'
+    depends_on:
+      - db
+    environment:
+      - DATABASE_URL=postgres://postgres:password@db:5432/woc
+    volumes:
+      - /opt/woc-plugin/api-data:/tmp # TODO: Make tmpfs, but need lots more RAM for that
+  db:
+    image: postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: woc
+    volumes:
+      - /opt/woc-plugin/db-data:/var/lib/postgresql/data
+
