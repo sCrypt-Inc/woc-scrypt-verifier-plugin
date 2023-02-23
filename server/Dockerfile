@@ -1,4 +1,4 @@
-FROM node:19.7.0-bullseye
+FROM node:19.6.1-buster
 
 WORKDIR /app
 COPY . .
@@ -6,11 +6,11 @@ COPY . .
 RUN apt-get update && apt-get install -y \
   curl \
   && rm -rf /var/lib/apt/lists/*
-RUN npm ci 
+RUN npm i
 RUN npm run build
 RUN curl -Ls https://scrypt.io/setup | sh -s -- -f
 
-ENV NODE_ENV production
-EXPOSE 3000
+#ENV NODE_ENV production
+#EXPOSE 5001
 
 CMD [ "npm", "run", "start" ]

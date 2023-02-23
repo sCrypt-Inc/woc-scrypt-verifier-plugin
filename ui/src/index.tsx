@@ -6,6 +6,9 @@ import App from './App';
 import Err from './Err';
 import reportWebVitals from './reportWebVitals';
 
+// TODO: Instead of "this app is using react..." just respond with simple 404
+//       When accessing invalid link.
+
 const router = createBrowserRouter([
   {
     path: "/:network/:txid/:voutIdx",

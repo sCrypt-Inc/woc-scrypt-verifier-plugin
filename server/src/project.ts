@@ -84,8 +84,9 @@ const packageJSON = {
         'scrypt-ts': 'beta',
     },
     devDependencies: {
-        '@types/node': '^18.14.0',
-        typescript: '=4.9.3',
+        '@types/node': '^18.11.0',
+        typescript: '=4.8.4',
+        rimraf: "^3.0.2",
     },
 }
 
@@ -105,9 +106,9 @@ const tsconfigJSON = {
             {
                 transform: 'scrypt-ts/dist/transformation/transformer',
                 outDir: './scrypts',
-                transformProgram: true,
+                transformProgram: true
             },
         ],
     },
-    include: ['src/**/*.ts'],
+    include: ['src/**/*.ts']
 }
