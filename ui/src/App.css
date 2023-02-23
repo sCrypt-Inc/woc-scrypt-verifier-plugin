@@ -54,7 +54,7 @@ h1 {
   flex-direction: column;
   justify-content: space-around;
   margin: 0 auto;
-  max-width: 750px;
+  width: 90%;
   padding: 30px 50px;
 }
 

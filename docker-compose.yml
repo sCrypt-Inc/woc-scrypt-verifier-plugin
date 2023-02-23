@@ -6,16 +6,16 @@ services:
       context: ./ui
       dockerfile: Dockerfile
     ports:
-      - '127.0.0.1:3000:3000'
+      - '127.0.0.1:5000:3000'
     environment:
-      - REACT_APP_SERVER_URL=http://api:8080
+      - REACT_APP_SERVER_URL=http://api:8001
 
   express-app:
     build:
-      context: ./express-app
+      context: ./server
       dockerfile: Dockerfile
     ports:
-      - '127.0.0.1:3001:5000'
+      - '127.0.0.1:5001:8001'
     depends_on:
       - db
     environment:

@@ -53,7 +53,7 @@ export default async function getScriptTemplate(
 
     // Build TS code.
     execSync('npm run build', { cwd: targetDir })
-
+    
     // TODO: Prettify code.
 
     // Compile resulting .scrypt file.
@@ -84,8 +84,8 @@ const packageJSON = {
         'scrypt-ts': 'beta',
     },
     devDependencies: {
-        '@types/node': '^18.11.10',
-        typescript: '=4.8.4',
+        '@types/node': '^18.14.0',
+        typescript: '=4.9.3',
     },
 }
 
