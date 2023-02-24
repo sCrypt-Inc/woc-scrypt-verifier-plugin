@@ -20,6 +20,8 @@ services:
       - db
     environment:
       - DATABASE_URL=postgres://postgres:password@db:5432/woc
+      - URL_PREFIX=/api
+      - SERVER_PORT=8001
     volumes:
       - /opt/woc-plugin/api-data:/tmp # TODO: Make tmpfs, but need lots more RAM for that
   db:

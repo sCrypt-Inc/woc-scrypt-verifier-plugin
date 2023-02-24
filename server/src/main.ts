@@ -9,6 +9,7 @@ import dotenv from 'dotenv'
 dotenv.config()
 
 const SERVER_PORT = process.env.SERVER_PORT || '8001'
+const URL_PREFIX = process.env.URL_PREFIX || ''
 
 const prisma = new PrismaClient()
 const app = express()
@@ -16,8 +17,12 @@ const app = express()
 app.use(cors())
 app.use(express.json())
 
+// Create a router for an URL prefix
+const router = express.Router();
+app.use(URL_PREFIX, router);
+
 // Will check wether the specified TX output already has verified code.
-app.get('/:network/:txid/:voutIdx', async (req, res) => {
+router.get('/:network/:txid/:voutIdx', async (req, res) => {
     const network: string = req.params.network
     const txid: string = req.params.txid.toLowerCase()
     const voutIdx = Number(req.params.voutIdx)
@@ -67,7 +72,7 @@ app.get('/:network/:txid/:voutIdx', async (req, res) => {
 
 // Verifies that passed smart contract code produces the correct script
 // corresponding to the specified TX output. If valid, stores entry in DB.
-app.post('/:network/:txid/:voutIdx', async (req, res) => {
+router.post('/:network/:txid/:voutIdx', async (req, res) => {
     const network: string = req.params.network
     const txid: string = req.params.txid.toLowerCase()
     const voutIdx = Number(req.params.voutIdx)
