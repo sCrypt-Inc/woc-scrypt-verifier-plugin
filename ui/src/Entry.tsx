@@ -5,6 +5,8 @@ import './App.css';
 
 
 function Entry(props: any) {
+  // TODO: Fetch for all scrypt-ts versions and make it selectable. 
+
   const { network, txid, voutIdx } = useParams();
   
   const newEntryRedirectURL = `/${network}/${txid}/${voutIdx}?new=true`
@@ -43,7 +45,7 @@ function Entry(props: any) {
       }
       <br />
       <Link to={newEntryRedirectURL}>
-        <button className="submitButton" >Submit new code</button>
+        <button className="submitButton" >Submit for another version</button>
       </Link>
     </div>
   );

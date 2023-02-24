@@ -115,6 +115,14 @@ router.post('/:network/:txid/:voutIdx', async (req, res) => {
     if (typeof scryptTSVersion !== 'string') {
         return res.status(400).send('Invalid scrypt-ts version.')
     }
+    
+    // If we already have an entry, then check if the specified
+    // scrypt-ts version is equal to the entries one.
+    // If so, we can abort.
+    const latestEntry = await getMostRecentEntry(network, txid, voutIdx, scryptTSVersion)
+    if (latestEntry) {
+        return res.status(400).send('Output already has verified code for the specified scrypt-ts version.')
+    }
 
     // Check body structure.
     const body = req.body
