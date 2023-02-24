@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import TextareaAutosize from 'react-textarea-autosize';
 import { useParams } from "react-router-dom";
 import configDefault from './configDefault.json'
@@ -8,24 +8,34 @@ import './App.css';
 
 const networks: string[] = ['main', 'test']
 
-// TODO: Fill dynamically.
-const scryptTSVersions: string[] = [
-  '0.1.6-beta.7'
-]
-
 const apiURL = process.env.REACT_APP_SERVER_URL || configDefault.SERVER_URL;
 
 function New() {
   const { network, txid, voutIdx } = useParams();
 
-  const [scryptTSVersion, setSelectedOptionScryptTSVersion] = useState(scryptTSVersions[0]);
+  const [scryptTSVersionList, setScryptTSVersionList] = useState([] as string[]);
+  const [scryptTSVersion, setSelectedOptionScryptTSVersion] = useState('');
   const [code, setCodeInput] = useState('');
-  const [abiConstructorParams, setAbiParamsInput] = useState(['']);
+  const [abiConstructorParams, setAbiParamsInput] = useState([] as string[]);
 
   const [loading, setLoading] = useState(false);
   const [errMsg, setErrMsg] = useState('');
 
   const apiSubmitURL = apiURL + `/${network}/${txid}/${voutIdx}`
+
+
+  useEffect(() => {
+    const fetchLatestVersions = async () => {
+      const packageName = 'scrypt-ts'
+      const url = `https://registry.npmjs.org/${packageName}/`
+      const response = await fetch(url)
+      const data = await response.json()
+      const versions = Object.keys(data.versions).reverse()
+      setScryptTSVersionList(versions)
+      setSelectedOptionScryptTSVersion(versions[0])
+    }
+    fetchLatestVersions()
+  }, []);
 
   const handleDropdownChangeScryptTSVersion = (event: any) => {
     setSelectedOptionScryptTSVersion(event.target.value);
@@ -59,7 +69,7 @@ function New() {
       code: code,
       abiConstructorParams: abiConstructorParams
     }
-    
+
     const response = await fetch(apiSubmitURL + '?ver=' + scryptTSVersion,
       {
         method: "POST",
@@ -83,12 +93,12 @@ function New() {
   return (
     <form onSubmit={handleSubmit} className="mainDiv">
       <label>
-        Select scrypt-ts version:<br /> 
+        Select scrypt-ts version:<br />
         <select value={scryptTSVersion} onChange={handleDropdownChangeScryptTSVersion}>
           {
             (() => {
               let container: any = [];
-              scryptTSVersions.forEach((val: any) => {
+              scryptTSVersionList.forEach((val: any) => {
                 container.push(
                   <option key={val} value={val}>
                     {val}
