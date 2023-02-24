@@ -5,11 +5,23 @@ import fetch from 'npm-registry-fetch'
 import getScriptTemplate from './project.js'
 import axios, { AxiosResponse } from 'axios'
 import dotenv from 'dotenv'
+import prettier from 'prettier'
 
 dotenv.config()
 
 const SERVER_PORT = process.env.SERVER_PORT || '8001'
 const URL_PREFIX = process.env.URL_PREFIX || ''
+
+const prettierOpt = {
+    semi: false,
+    printWidth: 80,
+    tabWidth: 4,
+    useTabs: false,
+    singleQuote: true,
+    trailingComma: 'es5',
+    bracketSpacing: true,
+    parser: 'typescript',
+}
 
 const prisma = new PrismaClient()
 const app = express()
@@ -150,12 +162,13 @@ router.post('/:network/:txid/:voutIdx', async (req, res) => {
     }
 
     // Add new entry to DB and respond normally.
+    const codePretty = prettier.format(body.code, prettierOpt)
     const newEntry = addEntry(
         network,
         txid,
         voutIdx,
         scryptTSVersion,
-        body.code,
+        codePretty,
         'main.ts'
     ) // TODO: fName
     return res.json(newEntry)

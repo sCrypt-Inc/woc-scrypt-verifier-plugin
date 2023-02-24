@@ -66,8 +66,6 @@ export default async function getScriptTemplate(
     // Build TS code.
     execSync('npm run build', { cwd: targetDir })
 
-    // TODO: Prettify code.
-
     // Compile resulting .scrypt file.
     const outDir = path.join(targetDir, 'scrypts', 'src')
     const scryptFile = path.join(outDir, 'main.scrypt')

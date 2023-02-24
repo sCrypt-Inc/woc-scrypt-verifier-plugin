@@ -12,6 +12,9 @@ function Entry(props: any) {
   return (
     <div>
       <p>
+      ✅ Matching sCrypt code found!
+      </p>
+      <p>
         <b>ScryptTS version:</b><br />{props.entryData.scryptTSVersion}
       </p>
       <p>
