@@ -4,13 +4,46 @@ import os from 'os'
 import { compileContract } from 'scryptlib/dist/utils.js'
 import { execSync } from 'child_process'
 
-function randHexStr(length: number): string {
-    const chars = '0123456789abcdef'
-    let hex = ''
-    for (let i = 0; i < length; i++) {
-        hex += chars[Math.floor(Math.random() * chars.length)]
+function prepareTargetDir(baseDir: string, scryptTSVersion: string): string {
+    // Check if dir for this scrypt-ts version already exists.
+    // If not, create it.
+    const target = path.join(baseDir, 'woc-plugin_' + scryptTSVersion)
+    const srcDir = path.join(target, 'src')
+    if (!fs.existsSync(target)) {
+        fs.mkdirSync(srcDir, { recursive: true })
+
+        // Apply scrypt-ts version.
+        const packageJSONRightVer = Object.assign({}, packageJSON)
+        packageJSONRightVer['dependencies']['scrypt-ts'] = scryptTSVersion
+
+        // Write package.json
+        fs.writeFileSync(
+            path.join(target, 'package.json'),
+            JSON.stringify(packageJSONRightVer)
+        )
+
+        // Write tsconfig.json
+        fs.writeFileSync(
+            path.join(target, 'tsconfig.json'),
+            JSON.stringify(tsconfigJSON)
+        )
+
+        // npm i
+        execSync('npm i', { cwd: target })
+    } else {
+        // Clean up.
+        // TODO: Maybe make this a script in package.json
+        fs.rmSync(srcDir, { recursive: true })
+        fs.mkdirSync(srcDir)
+
+        const scryptsDir = path.join(target, 'scrypts')
+        fs.rmSync(scryptsDir, { recursive: true })
+
+        const distDir = path.join(target, 'dist')
+        fs.rmSync(distDir, { recursive: true })
     }
-    return hex
+
+    return target
 }
 
 export default async function getScriptTemplate(
@@ -23,37 +56,16 @@ export default async function getScriptTemplate(
 
     const baseDir = os.tmpdir() // TODO: Make configurable via dotenv
 
-    const targetDir = path.join(baseDir, randHexStr(16) + '_woc-scrypt')
+    const targetDir = prepareTargetDir(baseDir, scryptTSVersion)
     const srcDir = path.join(targetDir, 'src')
-
-    fs.mkdirSync(srcDir, { recursive: true })
-
-    // Apply scrypt-ts version.
-    const packageJSONRightVer = Object.assign({}, packageJSON)
-    packageJSONRightVer['dependencies']['scrypt-ts'] = scryptTSVersion
-
-    // Write package.json
-    fs.writeFileSync(
-        path.join(targetDir, 'package.json'),
-        JSON.stringify(packageJSONRightVer)
-    )
-
-    // Write tsconfig.json
-    fs.writeFileSync(
-        path.join(targetDir, 'tsconfig.json'),
-        JSON.stringify(tsconfigJSON)
-    )
 
     // Write source code
     const srcFile = path.join(srcDir, 'main.ts')
     fs.writeFileSync(srcFile, sourceCode)
 
-    // npm i
-    execSync('npm i', { cwd: targetDir })
-
     // Build TS code.
     execSync('npm run build', { cwd: targetDir })
-    
+
     // TODO: Prettify code.
 
     // Compile resulting .scrypt file.
@@ -68,8 +80,6 @@ export default async function getScriptTemplate(
     const contractJSON = JSON.parse(
         fs.readFileSync(contractJSONFile).toString()
     )
-
-    fs.rmSync(targetDir, { recursive: true })
 
     return contractJSON.hex
 }
@@ -86,7 +96,7 @@ const packageJSON = {
     devDependencies: {
         '@types/node': '^18.11.0',
         typescript: '=4.8.4',
-        rimraf: "^3.0.2",
+        rimraf: '^3.0.2',
     },
 }
 
@@ -106,9 +116,9 @@ const tsconfigJSON = {
             {
                 transform: 'scrypt-ts/dist/transformation/transformer',
                 outDir: './scrypts',
-                transformProgram: true
+                transformProgram: true,
             },
         ],
     },
-    include: ['src/**/*.ts']
+    include: ['src/**/*.ts'],
 }

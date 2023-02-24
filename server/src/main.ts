@@ -18,8 +18,8 @@ app.use(cors())
 app.use(express.json())
 
 // Create a router for an URL prefix
-const router = express.Router();
-app.use(URL_PREFIX, router);
+const router = express.Router()
+app.use(URL_PREFIX, router)
 
 // Will check wether the specified TX output already has verified code.
 router.get('/:network/:txid/:voutIdx', async (req, res) => {
