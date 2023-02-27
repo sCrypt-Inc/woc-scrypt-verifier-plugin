@@ -13,7 +13,7 @@ function App() {
 
   const query = new URLSearchParams(useLocation().search);
 
-  const [apiResp, setDataApiResp] = useState<any>(null);
+  const [apiResp, setDataApiResp] = useState(undefined as any);
 
   const apiURL = (process.env.REACT_APP_SERVER_URL || configDefault.SERVER_URL)
     + `/${network}/${txid}/${voutIdx}`
@@ -23,7 +23,6 @@ function App() {
       const response = await fetch(apiURL, { mode: 'cors' });
       if (response.ok) {
         const jsonData = await response.json();
-        console.log(jsonData)
         setDataApiResp({
           ok: response.ok,
           status: response.status,
@@ -54,7 +53,7 @@ function App() {
         {apiResp
           ? <>
             {apiResp.ok
-              ? <Entry entryData={apiResp.data} />
+              ? <Entry entryList={apiResp.data} />
               : <New />
             }
           </>

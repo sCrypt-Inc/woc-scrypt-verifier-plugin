@@ -55,7 +55,7 @@ router.get('/:network/:txid/:voutIdx', async (req, res) => {
         return res.status(400).send('Invalid vout.')
     }
 
-    // Fetch most recent result from DB and respond.
+    // Fetch most recent result(s) from DB and respond.
     const scryptTSVersion = req.query.ver
     if (
         typeof scryptTSVersion !== 'string' &&
@@ -64,22 +64,22 @@ router.get('/:network/:txid/:voutIdx', async (req, res) => {
         return res.status(400).send('Invalid scrypt-ts version format.')
     }
 
-    let mostRecent: Entry
+    let entries: Entry[]
     if (scryptTSVersion) {
-        mostRecent = await getMostRecentEntry(
+        entries = await getMostRecentEntries(
             network,
             txid,
             voutIdx,
             scryptTSVersion
         )
     } else {
-        mostRecent = await getMostRecentEntry(network, txid, voutIdx)
+        entries = await getMostRecentEntries(network, txid, voutIdx)
     }
-    if (!mostRecent) {
+    if (!entries || entries.length == 0) {
         return res.status(404).send('No verified code for this output.')
     }
 
-    return res.json(mostRecent)
+    return res.json(entries)
 })
 
 // Verifies that passed smart contract code produces the correct script
@@ -115,13 +115,22 @@ router.post('/:network/:txid/:voutIdx', async (req, res) => {
     if (typeof scryptTSVersion !== 'string') {
         return res.status(400).send('Invalid scrypt-ts version.')
     }
-    
+
     // If we already have an entry, then check if the specified
     // scrypt-ts version is equal to the entries one.
     // If so, we can abort.
-    const latestEntry = await getMostRecentEntry(network, txid, voutIdx, scryptTSVersion)
-    if (latestEntry) {
-        return res.status(400).send('Output already has verified code for the specified scrypt-ts version.')
+    const entries = await getMostRecentEntries(
+        network,
+        txid,
+        voutIdx,
+        scryptTSVersion
+    )
+    if (entries.length > 0) {
+        return res
+            .status(400)
+            .send(
+                'Output already has verified code for the specified scrypt-ts version.'
+            )
     }
 
     // Check body structure.
@@ -135,6 +144,7 @@ router.post('/:network/:txid/:voutIdx', async (req, res) => {
     try {
         scriptTemplate = await getScriptTemplate(body.code, scryptTSVersion)
     } catch (e) {
+        console.error(e)
         return res
             .status(400)
             .send('Something went wrong when building the smart contract.')
@@ -148,6 +158,7 @@ router.post('/:network/:txid/:voutIdx', async (req, res) => {
             body.abiConstructorParams
         )
     } catch (e) {
+        console.error(e)
         return res.status(400).send(e.toString())
     }
 
@@ -158,6 +169,7 @@ router.post('/:network/:txid/:voutIdx', async (req, res) => {
     try {
         fetchResp = await axios.get(fetchURL)
     } catch (e) {
+        console.error(e)
         return res.status(400).send('Could not find original transaction.')
     }
 
@@ -191,14 +203,14 @@ async function getLatestPackageVersion(packageName: string): Promise<string> {
     return metadata.version
 }
 
-async function getMostRecentEntry(
+async function getMostRecentEntries(
     network: string,
     txid: string,
     voutIdx: number,
     scryptTSVersion?: string
-) {
+): Promise<Entry[]> {
     if (typeof scryptTSVersion !== 'undefined') {
-        return await prisma.entry.findFirst({
+        const res = await prisma.entry.findFirst({
             where: {
                 txid: txid,
                 voutIdx: voutIdx,
@@ -212,8 +224,12 @@ async function getMostRecentEntry(
                 timeAdded: 'desc',
             },
         })
+        if (!res) {
+            return []
+        }
+        return [res]
     } else {
-        return await prisma.entry.findFirst({
+        const res = await prisma.entry.findMany({
             where: {
                 txid: txid,
                 voutIdx: voutIdx,
@@ -222,7 +238,17 @@ async function getMostRecentEntry(
             include: {
                 src: true,
             },
-            orderBy: [{ scryptTSVersion: 'desc' }, { timeAdded: 'desc' }],
+            orderBy: {
+                timeAdded: 'desc',
+            },
+        })
+        const alreadyGot = new Set()
+        return res.filter((entry) => {
+            if (alreadyGot.has(entry.scryptTSVersion)) {
+                return false
+            }
+            alreadyGot.add(entry.scryptTSVersion)
+            return true
         })
     }
 }

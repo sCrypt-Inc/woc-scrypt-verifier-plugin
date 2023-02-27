@@ -122,11 +122,12 @@ function New() {
       <br />
       <label>
         Enter ABI-encoded constructor parameters: <br />
-        <TextareaAutosize // TODO: Add hint
+        <TextareaAutosize
           className='textInput'
           minRows={1}
           maxRows={3}
           onChange={handleAbiParamsChange}
+          placeholder={"E.g.: \"00\", \"ff\""}
         />
       </label>
       <br />

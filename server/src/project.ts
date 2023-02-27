@@ -32,15 +32,15 @@ function prepareTargetDir(baseDir: string, scryptTSVersion: string): string {
         execSync('npm i', { cwd: target })
     } else {
         // Clean up.
-        // TODO: Maybe make this a script in package.json
-        fs.rmSync(srcDir, { recursive: true })
+        // TODO: Maybe make this a script in package.json?
+        fs.rmSync(srcDir, { recursive: true, force: true })
         fs.mkdirSync(srcDir)
 
         const scryptsDir = path.join(target, 'scrypts')
-        fs.rmSync(scryptsDir, { recursive: true })
+        fs.rmSync(scryptsDir, { recursive: true, force: true })
 
         const distDir = path.join(target, 'dist')
-        fs.rmSync(distDir, { recursive: true })
+        fs.rmSync(distDir, { recursive: true, force: true })
     }
 
     return target
