@@ -15,8 +15,7 @@ datasource db {
 model Entry {
   id         Int      @id @default(autoincrement())
   network    String
-  txid       String
-  voutIdx    Int
+  scriptHash String
   scryptTSVersion       String
   timeAdded  DateTime @default(now())
   constrAbiParams        ConstrAbiParams[]

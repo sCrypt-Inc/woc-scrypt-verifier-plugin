@@ -16,6 +16,7 @@ function New() {
   const [scryptTSVersionList, setScryptTSVersionList] = useState([] as string[]);
   const [scryptTSVersion, setSelectedOptionScryptTSVersion] = useState('');
   const [code, setCodeInput] = useState('');
+  const [abiConstructorParams, setAbiParamsInput] = useState([] as string[]);
 
   const [loading, setLoading] = useState(false);
   const [errMsg, setErrMsg] = useState('');
@@ -44,6 +45,18 @@ function New() {
     setCodeInput(event.target.value);
   }
 
+  const handleAbiParamsChange = (event: any) => {
+    const rawVal: string = event.target.value
+    if (rawVal.match(/[^a-fA-F0-9",\s\[\]]+/) || rawVal.length % 2 != 0) {
+      // TODO: Highlight syntax err.
+      return
+    }
+    let res: string[] = rawVal.toLowerCase().replaceAll(/[",\[\]]+/g, ' ').split(/\s+/).filter(
+      (val: string) => val.trim() !== ''
+    )
+    setAbiParamsInput(res)
+  }
+
   const handleSubmit = async (event: any) => {
     event.preventDefault()
 
@@ -53,7 +66,8 @@ function New() {
     // TODO: Do a sanity check on all input data
 
     const payload = {
-      code: code
+      code: code,
+      abiConstructorParams: abiConstructorParams
     }
 
     const response = await fetch(apiSubmitURL + '?ver=' + scryptTSVersion,
@@ -103,6 +117,17 @@ function New() {
           minRows={10}
           maxRows={30}
           onChange={handleCodeChange}
+        />
+      </label>
+      <br />
+      <label>
+        Enter ABI-encoded constructor parameters: <br />
+        <TextareaAutosize
+          className='textInput'
+          minRows={1}
+          maxRows={3}
+          onChange={handleAbiParamsChange}
+          placeholder={"E.g.: \"00\", \"ff\""}
         />
       </label>
       <br />

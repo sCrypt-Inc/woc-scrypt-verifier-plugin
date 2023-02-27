@@ -43,8 +43,8 @@ export class Demo extends SmartContract {
 const entryData: any = [
     {
         network: 'test',
-        txid: '0000000000000000000000000000000000000000000000000000000000000000',
-        voutIdx: 0,
+        scriptHash:
+            '0000000000000000000000000000000000000000000000000000000000000000',
         scryptTSVersion: '0.1.6-beta.7',
         constrAbiParams: {
             create: [

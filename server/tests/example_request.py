@@ -1,10 +1,9 @@
 import requests
 import json
 
-txid = '8e36519052a7090b9958781a71cab9c35564de947b4050ea853d91d2b846b683'
-vout_idx = 0
+script_hash = 'da3cd38dbf67d44005e8f0dd677f3b048ebf9620cce81e1171f25e4287fd7e7f'
 network = 'test'
-url = 'http://localhost:5001/{}/{}/{}'.format(network, txid, vout_idx)
+url = 'http://localhost:8001/{}/{}'.format(network, script_hash)
 
 code = '''
 import { method, prop, SmartContract, assert, bsv, UTXO } from 'scrypt-ts'
