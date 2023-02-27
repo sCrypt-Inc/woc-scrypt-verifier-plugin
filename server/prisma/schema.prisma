@@ -19,8 +19,19 @@ model Entry {
   voutIdx    Int
   scryptTSVersion       String
   timeAdded  DateTime @default(now())
+  constrAbiParams        ConstrAbiParams[]
   src        Src[]
 }
+
+model ConstrAbiParams {
+  id      Int    @id @default(autoincrement())
+  entry   Entry  @relation(fields: [entryId], references: [id])
+  entryId Int
+  pos     Int
+  name    String
+  val     String
+}
+
 
 model Src {
   id      Int    @id @default(autoincrement())

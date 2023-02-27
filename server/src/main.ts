@@ -150,18 +150,6 @@ router.post('/:network/:txid/:voutIdx', async (req, res) => {
             .send('Something went wrong when building the smart contract.')
     }
 
-    // Get script template and substitute constructor params
-    let script: string
-    try {
-        script = applyConstructorParams(
-            scriptTemplate,
-            body.abiConstructorParams
-        )
-    } catch (e) {
-        console.error(e)
-        return res.status(400).send(e.toString())
-    }
-
     // Fetch original script from WoC and compare with the generated one.
     // TODO: Test with large transactions.
     const fetchURL = `https://api.whatsonchain.com/v1/bsv/${network}/tx/hash/${txid}`
@@ -177,7 +165,11 @@ router.post('/:network/:txid/:voutIdx', async (req, res) => {
         return res.status(400).send('Invalid vout idx.')
     }
 
-    if (script != fetchResp.data.vout[voutIdx].scriptPubKey.hex) {
+    const isValid = verify(
+        scriptTemplate,
+        fetchResp.data.vout[voutIdx].scriptPubKey.hex
+    )
+    if (!isValid) {
         return res.status(400).send('Script mismatch.')
     }
 
@@ -189,8 +181,9 @@ router.post('/:network/:txid/:voutIdx', async (req, res) => {
         voutIdx,
         scryptTSVersion,
         codePretty,
-        'main.ts'
-    ) // TODO: fName
+        'main.ts',
+        []
+    )
     return res.json(newEntry)
 })
 
@@ -219,6 +212,7 @@ async function getMostRecentEntries(
             },
             include: {
                 src: true,
+                constrAbiParams: true,
             },
             orderBy: {
                 timeAdded: 'desc',
@@ -237,6 +231,7 @@ async function getMostRecentEntries(
             },
             include: {
                 src: true,
+                constrAbiParams: true,
             },
             orderBy: {
                 timeAdded: 'desc',
@@ -259,7 +254,8 @@ async function addEntry(
     voutIdx: number,
     scryptTSVersion: string,
     code: string,
-    fName: string
+    fName: string,
+    constrAbiParams: ConstrParam[]
 ) {
     const newEntry = await prisma.entry.create({
         data: {
@@ -277,37 +273,33 @@ async function addEntry(
             },
         },
     })
+
+    // TODO: Batch create.
+    constrAbiParams.forEach(async (p: ConstrParam, i: number) => {
+        await prisma.constrAbiParams.create({
+            data: {
+                pos: i,
+                name: p.name,
+                val: p.val,
+                entryId: newEntry.id,
+            },
+        })
+    })
+
     return newEntry
 }
 
-function applyConstructorParams(
-    scriptTemplate: string,
-    constructorParams: string[]
-): string {
-    const numParams = (scriptTemplate.match(/<.*?>/g) || []).length
-    if (numParams != constructorParams.length) {
-        throw new Error('Invalid number of constructor params.')
-    }
+type ConstrParam = {
+    pos: number
+    name: string
+    val: string
+}
 
-    let res = ''
+function verify(scriptTemplate: string, script: string): boolean {
+    // Convert template to regex.
+    const templateRegex = scriptTemplate.replaceAll(/<(.*?)>/g, '[a-fA-F0-9]*?')
 
-    let placeholderFlag = false
-    let paramIdx = 0
-    for (const c of scriptTemplate) {
-        if (c == '<') {
-            placeholderFlag = true
-            res += constructorParams[paramIdx]
-            paramIdx++
-            continue
-        } else if (c == '>') {
-            placeholderFlag = false
-            continue
-        }
+    const match = script.match(templateRegex)
 
-        if (!placeholderFlag) {
-            res += c
-        }
-    }
-
-    return res
+    return match ? true : false
 }

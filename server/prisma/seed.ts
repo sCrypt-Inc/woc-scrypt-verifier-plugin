@@ -46,6 +46,20 @@ const entryData: any = [
         txid: '0000000000000000000000000000000000000000000000000000000000000000',
         voutIdx: 0,
         scryptTSVersion: '0.1.6-beta.7',
+        constrAbiParams: {
+            create: [
+                {
+                    pos: 0,
+                    name: 'x',
+                    val: '51',
+                },
+                {
+                    pos: 1,
+                    name: 'y',
+                    val: '52',
+                },
+            ],
+        },
         src: {
             create: [
                 {
