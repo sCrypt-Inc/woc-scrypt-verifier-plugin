@@ -11,7 +11,7 @@ import reportWebVitals from './reportWebVitals';
 
 const router = createBrowserRouter([
   {
-    path: "/:network/:txid/:voutIdx",
+    path: "/:network/:scriptHash",
     element: <App />,
     errorElement: <Err />
   },

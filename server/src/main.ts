@@ -2,10 +2,15 @@ import { Entry, PrismaClient } from '@prisma/client'
 import cors from 'cors'
 import express from 'express'
 import fetch from 'npm-registry-fetch'
-import getScriptTemplate from './project.js'
+import getContractJSON from './project.js'
 import dotenv from 'dotenv'
 import prettier from 'prettier'
-import { createHash } from 'crypto'
+import axios from 'axios'
+import * as CryptoJS from 'crypto-js'
+import { deserializer } from 'scryptlib/dist/deserializer.js'
+
+// TODO: Test with pushdata constructor params.
+// TODO: Test with no constructor params.
 
 dotenv.config()
 
@@ -126,9 +131,18 @@ router.post('/:network/:scriptHash', async (req, res) => {
         return res.status(400).send('Invalid request body.')
     }
 
-    let scriptTemplate: string
+    // Fetch on-chain script.
+    let script: string
     try {
-        scriptTemplate = await getScriptTemplate(body.code, scryptTSVersion)
+        script = await fetchScriptViaScriptHash(scriptHash, network)
+    } catch (e) {
+        console.error(e)
+        return res.status(400).send('Could not fetch original script.')
+    }
+
+    let contractJSON: object
+    try {
+        contractJSON = await getContractJSON(body.code, scryptTSVersion)
     } catch (e) {
         console.error(e)
         return res
@@ -136,31 +150,30 @@ router.post('/:network/:scriptHash', async (req, res) => {
             .send('Something went wrong when building the smart contract.')
     }
 
+    const scriptTemplate = contractJSON['hex']
+    const abi = contractJSON['abi']
+
     try {
-        const isValid = verify(
-            scriptTemplate,
-            body.abiConstructorParams,
-            scriptHash
-        )
+        const [isValid, constructorParams] = verify(scriptTemplate, abi, script)
         if (!isValid) {
             return res.status(400).send('Script mismatch.')
         }
+
+        // Add new entry to DB and respond normally.
+        const codePretty = prettier.format(body.code, prettierOpt)
+        const newEntry = addEntry(
+            network,
+            scriptHash,
+            scryptTSVersion,
+            codePretty,
+            'main.ts',
+            constructorParams
+        )
+        return res.json(newEntry)
     } catch (e) {
         console.error(e)
         return res.status(400).send(e.toString())
     }
-
-    // Add new entry to DB and respond normally.
-    const codePretty = prettier.format(body.code, prettierOpt)
-    const newEntry = addEntry(
-        network,
-        scriptHash,
-        scryptTSVersion,
-        codePretty,
-        'main.ts',
-        []
-    )
-    return res.json(newEntry)
 })
 
 app.listen(SERVER_PORT, () =>
@@ -186,7 +199,11 @@ async function getMostRecentEntries(
             },
             include: {
                 src: true,
-                constrAbiParams: true,
+                constrAbiParams: {
+                    orderBy: {
+                        pos: 'asc',
+                    },
+                },
             },
             orderBy: {
                 timeAdded: 'desc',
@@ -204,7 +221,11 @@ async function getMostRecentEntries(
             },
             include: {
                 src: true,
-                constrAbiParams: true,
+                constrAbiParams: {
+                    orderBy: {
+                        pos: 'asc',
+                    },
+                },
             },
             orderBy: {
                 timeAdded: 'desc',
@@ -268,59 +289,147 @@ type ConstrParam = {
 
 function verify(
     scriptTemplate: string,
-    abiConstructorParams: string[],
-    scriptHash
-): boolean {
-    // Get script template and substitute constructor params
-    const script = applyConstructorParams(scriptTemplate, abiConstructorParams)
-    const binaryData = hexToBinary(script)
-    const hash = sha256Hash(binaryData)
-    console.log(hash)
-    return hash == scriptHash
-}
+    abi: object[],
+    script: string
+): [boolean, ConstrParam[]] {
+    // Parse out template data via regex.
+    const templateRegex = scriptTemplate.replaceAll(
+        /<(.*?)>/g,
+        '([a-fA-F0-9]*?)'
+    )
+    const matchVals = script.match(templateRegex)
+    if (!matchVals) {
+        return [false, []]
+    }
+    const templateData = matchVals.slice(1).join('')
+    console.log(abi)
 
-function applyConstructorParams(
-    scriptTemplate: string,
-    constructorParams: string[]
-): string {
-    const numParams = (scriptTemplate.match(/<.*?>/g) || []).length
-    if (numParams != constructorParams.length) {
-        throw new Error('Invalid number of constructor params.')
+    // Const check if contract even has an explicit constructor.
+    const constructorAbi = getConstructorAbi(abi)
+    if (!constructorAbi) {
+        return [true, []]
     }
 
-    let res = ''
+    const constructorParamLabels = scriptTemplate.match(/(?<=<).*?(?=>)/g)
 
-    let placeholderFlag = false
-    let paramIdx = 0
-    for (const c of scriptTemplate) {
-        if (c == '<') {
-            placeholderFlag = true
-            res += constructorParams[paramIdx]
-            paramIdx++
-            continue
-        } else if (c == '>') {
-            placeholderFlag = false
+    // Interpret pushdata and match with param names.
+    const res: ConstrParam[] = []
+    const pos = 0
+    for (let i = 0; i < templateData.length; i += 2) {
+        const hexVal = templateData.slice(i, i + 2)
+        const intVal = parseInt(hexVal, 16)
+
+        let numBytesEnd: number
+        // Check 0x01-0x4B, OP_0 - OP_16
+        console.log(intVal)
+        if ((intVal >= 0 && intVal <= 75) || (intVal >= 81 && intVal <= 96)) {
+            const paramName = constructorParamLabels.shift()
+            res.push({ pos: pos, name: paramName, val: hexVal })
             continue
         }
+        // Check 0x4C
+        else if (intVal == 76) {
+            numBytesEnd = i + 4
+        }
+        // Check 0x4D
+        else if (intVal == 77) {
+            numBytesEnd = i + 6
+        }
+        // Check 0x4E
+        else if (intVal == 78) {
+            numBytesEnd = i + 8
+        }
+        // If something else, abort with error.
+        else {
+            throw new Error('Error while interpreting constructor param data.')
+        }
 
-        if (!placeholderFlag) {
-            res += c
+        const paramName = constructorParamLabels.shift()
+        const numBytesHex = templateData.slice(i + 2, numBytesEnd)
+        const numBytesInt = parseInt(numBytesHex, 16)
+
+        const iNext = numBytesEnd + 2 + numBytesInt * 2
+        const dataRest = templateData.slice(numBytesEnd, iNext)
+        res.push({ pos: pos, name: paramName, val: hexVal + dataRest })
+
+        i = iNext
+    }
+
+    // Parse primitive types based on ABI.
+    const parsedRes = parsePrimitiveTypes(res, constructorAbi)
+
+    return [true, parsedRes]
+}
+
+async function fetchScriptViaScriptHash(
+    scriptHash: string,
+    network: string
+): Promise<string> {
+    const historyURL = `https://api.whatsonchain.com/v1/bsv/${network}/script/${scriptHash}/history`
+    const historyResp = await axios.get(historyURL)
+    if (historyResp.data.length == 0) {
+        throw new Error('No tx found with specified scripthash.')
+    }
+
+    const txid = historyResp.data[0].tx_hash
+    const txURL = `https://api.whatsonchain.com/v1/bsv/${network}/tx/hash/${txid}`
+    const txResp = await axios.get(txURL)
+    const vout = txResp.data.vout
+    for (let i = 0; i < vout.length; i++) {
+        const out = vout[i]
+        const originalScript = out.scriptPubKey.hex
+        const originalScriptHash = getScriptHash(originalScript)
+        console.log(originalScript)
+        console.log(originalScriptHash)
+        if (originalScriptHash == scriptHash) {
+            return originalScript
+        }
+    }
+
+    // Should never get here.
+    throw new Error('Script match error.')
+}
+
+function getScriptHash(scriptPubKeyHex: string): string {
+    const scriptHash = CryptoJS.default.enc.Hex.stringify(
+        CryptoJS.default.SHA256(CryptoJS.default.enc.Hex.parse(scriptPubKeyHex))
+    )
+    return scriptHash.match(/.{2}/g)?.reverse()?.join('') ?? ''
+}
+
+function getConstructorAbi(abi: object[]): object {
+    for (let i = 0; i < abi.length; i++) {
+        const abiVal = abi[i]
+        if (abiVal['type'] == 'constructor') {
+            return abiVal
+        }
+    }
+    return undefined
+}
+
+function parsePrimitiveTypes(
+    constructorParams: ConstrParam[],
+    constructorAbi: object
+): ConstrParam[] {
+    const res: ConstrParam[] = []
+
+    for (let i = 0; i < constructorParams.length; i++) {
+        const param = constructorParams[i]
+
+        const paramVal = param.val
+        const paramType = constructorAbi['params'][i]['type']
+
+        try {
+            const parsedVal = deserializer(paramType, paramVal)
+            res.push({
+                pos: param.pos,
+                name: param.name,
+                val: parsedVal.toString(),
+            })
+        } catch (e) {
+            res.push({ pos: param.pos, name: param.name, val: param.val })
         }
     }
 
     return res
-}
-
-function hexToBinary(hex: string): Uint8Array {
-    const binary = new Uint8Array(hex.length / 2)
-    for (let i = 0; i < hex.length; i += 2) {
-        binary[i / 2] = parseInt(hex.slice(i, i + 2), 16)
-    }
-    return binary
-}
-
-function sha256Hash(binary: Uint8Array): string {
-    const hash = createHash('sha256')
-    hash.update(binary)
-    return hash.digest('hex')
 }

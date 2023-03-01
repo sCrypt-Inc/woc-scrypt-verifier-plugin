@@ -2,24 +2,25 @@ import React, { useState, useEffect } from 'react';
 import { CopyBlock, dracula } from "react-code-blocks";
 import { Link, useParams } from 'react-router-dom';
 import configDefault from './configDefault.json'
+import TextareaAutosize from 'react-textarea-autosize';
 
 import './App.css';
 
 const apiURL = process.env.REACT_APP_SERVER_URL || configDefault.SERVER_URL;
 
 function Entry(props: any) {
-  const { network, txid, voutIdx } = useParams();
+  const { network, scriptHash } = useParams();
 
-  const newEntryRedirectURL = `/${network}/${txid}/${voutIdx}?new=true`
+  const newEntryRedirectURL = `/${network}/${scriptHash}?new=true`
 
-  
+
   const [selectedEntry, setSelectedEntry] = useState(0)
   const [entryList, setEntryList] = useState(undefined as any)
 
   const handleDropdownChangeScryptTSVersion = (event: any) => {
     setSelectedEntry(event.target.value)
   }
-  
+
   useEffect(() => {
     setEntryList(props.entryList)
   }, []);
@@ -73,6 +74,43 @@ function Entry(props: any) {
           return container;
         })()
       }
+      <br />
+      <p>
+        <b>Constructor parameters:</b>
+      </p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Pos</th>
+            <th>Name</th>
+            <th>Val</th>
+          </tr>
+        </thead>
+        <tbody>
+          {
+            (() => {
+              let container: any = [];
+              entryList[selectedEntry].constrAbiParams.forEach((val: any) => {
+                container.push(
+                  <tr>
+                    <td>{val.pos}</td>
+                    <td>{val.name}</td>
+                    <td>
+                      <TextareaAutosize
+                        className='textInput'
+                        maxRows={3}
+                        value={val.val}
+                        readOnly
+                      />
+                    </td>
+                  </tr>)
+              });
+              return container;
+            })()
+          }
+        </tbody>
+      </table>
       <br />
       <Link to={newEntryRedirectURL}>
         <button className="submitButton" >Submit for another version</button>

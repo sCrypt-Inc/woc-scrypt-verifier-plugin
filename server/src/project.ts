@@ -46,10 +46,10 @@ function prepareTargetDir(baseDir: string, scryptTSVersion: string): string {
     return target
 }
 
-export default async function getScriptTemplate(
+export default async function getContractJSON(
     sourceCode: string,
     scryptTSVersion: string
-): Promise<string> {
+): Promise<object> {
     // TODO: Sandbox!!!
     // TODO: Make sure to completely remove all generated files, even if
     //       an exception does occur.
@@ -79,7 +79,7 @@ export default async function getScriptTemplate(
         fs.readFileSync(contractJSONFile).toString()
     )
 
-    return contractJSON.hex
+    return contractJSON
 }
 
 const packageJSON = {

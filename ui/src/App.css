@@ -111,3 +111,58 @@ p {
     transform: rotate(360deg);
   }
 }
+
+/* Style the table */
+table {
+  border-collapse: collapse;
+  width: 100%;
+  max-width: 800px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  background-color: #fff;
+}
+
+/* Style the table headers */
+th {
+  background-color: #f1f1f1;
+  color: #555;
+  font-weight: 700;
+  padding: 0.5rem 1rem;
+  text-align: left;
+  border-bottom: 2px solid #ddd;
+}
+
+/* Style the table rows */
+tr {
+  border-bottom: 1px solid #ddd;
+}
+
+/* Style alternating rows */
+tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
+/* Style table cells */
+td {
+  padding: 0.5rem 1rem;
+  vertical-align: middle;
+}
+
+/* Style the Val column with horizontal scrolling */
+td:nth-child(3) {
+  white-space: nowrap;
+  overflow-x: auto;
+}
+
+/* Style the scrollbar for the Val column */
+td:nth-child(3)::-webkit-scrollbar {
+  height: 8px;
+}
+
+td:nth-child(3)::-webkit-scrollbar-track {
+  background-color: #f1f1f1;
+}
+
+td:nth-child(3)::-webkit-scrollbar-thumb {
+  background-color: #888;
+}

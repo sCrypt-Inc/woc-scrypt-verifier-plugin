@@ -9,14 +9,14 @@ import New from './New';
 import './App.css';
 
 function App() {
-  const { network, txid, voutIdx } = useParams();
+  const { network, scriptHash } = useParams();
 
   const query = new URLSearchParams(useLocation().search);
 
   const [apiResp, setDataApiResp] = useState(undefined as any);
 
   const apiURL = (process.env.REACT_APP_SERVER_URL || configDefault.SERVER_URL)
-    + `/${network}/${txid}/${voutIdx}`
+    + `/${network}/${scriptHash}`
 
   useEffect(() => {
     const fetchData = async () => {
