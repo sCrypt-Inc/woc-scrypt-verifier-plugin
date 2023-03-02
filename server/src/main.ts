@@ -302,7 +302,6 @@ function verify(
         return [false, []]
     }
     const templateData = matchVals.slice(1).join('')
-    console.log(abi)
 
     // Const check if contract even has an explicit constructor.
     const constructorAbi = getConstructorAbi(abi)
@@ -320,12 +319,15 @@ function verify(
         const intVal = parseInt(hexVal, 16)
 
         let numBytesEnd: number
-        // Check 0x01-0x4B, OP_0 - OP_16
-        console.log(intVal)
-        if ((intVal >= 0 && intVal <= 75) || (intVal >= 81 && intVal <= 96)) {
+        // CheckOP_0 - OP_16
+        if (intVal >= 81 && intVal <= 96) {
             const paramName = constructorParamLabels.shift()
             res.push({ pos: pos, name: paramName, val: hexVal })
             continue
+        }
+        // Check 0x01-0x4B,
+        else if (intVal >= 0 && intVal <= 75) {
+            numBytesEnd = i + 2
         }
         // Check 0x4C
         else if (intVal == 76) {
@@ -345,8 +347,14 @@ function verify(
         }
 
         const paramName = constructorParamLabels.shift()
-        const numBytesHex = templateData.slice(i + 2, numBytesEnd)
+        let numBytesHex: string
+        if (numBytesEnd == i + 2) {
+            numBytesHex = templateData.slice(i, numBytesEnd)
+        } else {
+            numBytesHex = templateData.slice(i + 2, numBytesEnd)
+        }
         const numBytesInt = parseInt(numBytesHex, 16)
+        console.log(numBytesInt)
 
         const iNext = numBytesEnd + 2 + numBytesInt * 2
         const dataRest = templateData.slice(numBytesEnd, iNext)
@@ -371,18 +379,20 @@ async function fetchScriptViaScriptHash(
         throw new Error('No tx found with specified scripthash.')
     }
 
-    const txid = historyResp.data[0].tx_hash
-    const txURL = `https://api.whatsonchain.com/v1/bsv/${network}/tx/hash/${txid}`
-    const txResp = await axios.get(txURL)
-    const vout = txResp.data.vout
-    for (let i = 0; i < vout.length; i++) {
-        const out = vout[i]
-        const originalScript = out.scriptPubKey.hex
-        const originalScriptHash = getScriptHash(originalScript)
-        console.log(originalScript)
-        console.log(originalScriptHash)
-        if (originalScriptHash == scriptHash) {
-            return originalScript
+    for (let i = 0; i < historyResp.data.length; i++) {
+        const txid = historyResp.data[i].tx_hash
+        const txURL = `https://api.whatsonchain.com/v1/bsv/${network}/tx/hash/${txid}`
+        const txResp = await axios.get(txURL)
+        const vout = txResp.data.vout
+        for (let j = 0; j < vout.length; j++) {
+            const out = vout[j]
+            const originalScript = out.scriptPubKey.hex
+            const originalScriptHash = getScriptHash(originalScript)
+            console.log(originalScript)
+            console.log(originalScriptHash)
+            if (originalScriptHash == scriptHash) {
+                return originalScript
+            }
         }
     }
 

@@ -43,9 +43,6 @@ class MyProject extends SmartContract {
 # Define the data to be sent in the request body
 payload = {
     'code': code,
-    'abiConstructorParams': [
-        '51', '52'
-    ]
 }
 
 # Convert the payload to a JSON string
