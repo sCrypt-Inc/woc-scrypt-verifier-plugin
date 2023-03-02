@@ -1,7 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import os from 'os'
-import { compileContract } from 'scryptlib/dist/utils.js'
+import { compileContractAsync } from 'scryptlib/dist/utils.js'
 import { execSync } from 'child_process'
 
 function prepareTargetDir(baseDir: string, scryptTSVersion: string): string {
@@ -67,11 +67,14 @@ export default async function getContractJSON(
     execSync('npm run build', { cwd: targetDir })
 
     // Compile resulting .scrypt file.
+    // TODO: Use compiler binary in node_modules directly or write some code that calls
+    //       compile() function (would even be better).
     const outDir = path.join(targetDir, 'scrypts', 'src')
     const scryptFile = path.join(outDir, 'main.scrypt')
-    compileContract(scryptFile, {
-        out: outDir,
+    await compileContractAsync(scryptFile, {
+        sourceMap: true,
         artifact: true,
+        out: outDir,
     })
 
     const contractJSONFile = path.join(outDir, 'main.json')

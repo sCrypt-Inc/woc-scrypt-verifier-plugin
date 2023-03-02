@@ -82,9 +82,9 @@ function Entry(props: any) {
       <table>
         <thead>
           <tr>
-            <th>Pos</th>
+            <th>Position</th>
             <th>Name</th>
-            <th>Val</th>
+            <th>Value</th>
           </tr>
         </thead>
         <tbody>

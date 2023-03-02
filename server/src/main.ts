@@ -8,6 +8,7 @@ import prettier from 'prettier'
 import axios from 'axios'
 import * as CryptoJS from 'crypto-js'
 import { deserializer } from 'scryptlib/dist/deserializer.js'
+import { bsv } from 'scryptlib'
 
 // TODO: Test with pushdata constructor params.
 // TODO: Test with no constructor params.
@@ -292,16 +293,14 @@ function verify(
     abi: object[],
     script: string
 ): [boolean, ConstrParam[]] {
-    // Parse out template data via regex.
-    const templateRegex = scriptTemplate.replaceAll(
-        /<(.*?)>/g,
-        '([a-fA-F0-9]*?)'
-    )
-    const matchVals = script.match(templateRegex)
-    if (!matchVals) {
+    script = truncateOpReturn(script)
+    const isMatch = matchTemplate(script, scriptTemplate)
+    if (!isMatch) {
         return [false, []]
     }
-    const templateData = matchVals.slice(1).join('')
+
+    // Parse out template hex data.
+    const templateData = getTemplateData(script, scriptTemplate)
 
     // Const check if contract even has an explicit constructor.
     const constructorAbi = getConstructorAbi(abi)
@@ -310,6 +309,21 @@ function verify(
     }
 
     const constructorParamLabels = scriptTemplate.match(/(?<=<).*?(?=>)/g)
+
+    //let pos = 0
+    //const templateDataScript = new bsv.Script(templateData)
+    //const res: ConstrParam[] = []
+    //for (const chunk of templateDataScript.chunks) {
+    //    const paramName = constructorParamLabels.shift()
+    //    let hexVal: string
+    //    if (chunk['buf']) {
+    //        hexVal = chunk['buf'].toString('hex')
+    //    } else {
+    //        hexVal = int2hex(BigInt(chunk.opcodenum))
+    //    }
+    //    res.push({ pos: pos, name: paramName, val: hexVal })
+    //    pos++
+    //}
 
     // Interpret pushdata and match with param names.
     const res: ConstrParam[] = []
@@ -327,7 +341,7 @@ function verify(
         }
         // Check 0x01-0x4B,
         else if (intVal >= 0 && intVal <= 75) {
-            numBytesEnd = i + 2
+            numBytesEnd = i
         }
         // Check 0x4C
         else if (intVal == 76) {
@@ -348,15 +362,14 @@ function verify(
 
         const paramName = constructorParamLabels.shift()
         let numBytesHex: string
-        if (numBytesEnd == i + 2) {
-            numBytesHex = templateData.slice(i, numBytesEnd)
+        if (numBytesEnd == i) {
+            numBytesHex = hexVal
         } else {
             numBytesHex = templateData.slice(i + 2, numBytesEnd)
         }
         const numBytesInt = parseInt(numBytesHex, 16)
-        console.log(numBytesInt)
 
-        const iNext = numBytesEnd + 2 + numBytesInt * 2
+        const iNext = numBytesEnd + numBytesInt * 2
         const dataRest = templateData.slice(numBytesEnd, iNext)
         res.push({ pos: pos, name: paramName, val: hexVal + dataRest })
 
@@ -388,8 +401,6 @@ async function fetchScriptViaScriptHash(
             const out = vout[j]
             const originalScript = out.scriptPubKey.hex
             const originalScriptHash = getScriptHash(originalScript)
-            console.log(originalScript)
-            console.log(originalScriptHash)
             if (originalScriptHash == scriptHash) {
                 return originalScript
             }
@@ -430,15 +441,101 @@ function parsePrimitiveTypes(
         const paramType = constructorAbi['params'][i]['type']
 
         try {
-            const parsedVal = deserializer(paramType, paramVal)
+            let parsedVal: string
+            // TODO: Pubkeys 33 bytes long and stuff?
+            if (!['int', 'privkey', 'bool'].includes(paramType.toLowerCase())) {
+                parsedVal = paramVal
+            } else {
+                parsedVal = deserializer(paramType, paramVal).toString()
+            }
             res.push({
                 pos: param.pos,
                 name: param.name,
-                val: parsedVal.toString(),
+                val: parsedVal,
             })
         } catch (e) {
             res.push({ pos: param.pos, name: param.name, val: param.val })
         }
+    }
+
+    return res
+}
+
+function matchTemplate(script: string, scriptTemplate: string): boolean {
+    // Replace template placeholders with a simple asterisk.
+    scriptTemplate = scriptTemplate.replaceAll(/<.*>/g, '*')
+
+    const pLength = scriptTemplate.length
+    const tLength = script.length
+    let pIndex = 0
+    let tIndex = 0
+    let wildcardIndex = -1
+    let matchIndex = -1
+
+    while (tIndex < tLength) {
+        if (
+            pIndex < pLength &&
+            (scriptTemplate[pIndex] === script[tIndex] ||
+                scriptTemplate[pIndex] === '*')
+        ) {
+            if (scriptTemplate[pIndex] === '*') {
+                wildcardIndex = pIndex
+                matchIndex = tIndex
+                pIndex++
+            } else {
+                pIndex++
+                tIndex++
+            }
+        } else if (wildcardIndex !== -1) {
+            pIndex = wildcardIndex + 1
+            matchIndex++
+            tIndex = matchIndex
+        } else {
+            return false
+        }
+    }
+
+    while (pIndex < pLength && scriptTemplate[pIndex] === '*') {
+        pIndex++
+    }
+
+    return pIndex === pLength
+}
+
+function truncateOpReturn(script: string): string {
+    const res = new bsv.Script('')
+    const scriptObj = new bsv.Script(script)
+    for (let i = 0; i < scriptObj.chunks.length; i++) {
+        const opcode = scriptObj.chunks[i]
+        if (opcode.opcodenum == 106) {
+            break
+        }
+        res.add(opcode)
+    }
+    return res.toHex()
+}
+
+function getTemplateData(script: string, scriptTemplate: string): string {
+    let res = script
+
+    // Throw out prefix
+    for (let i = 0; i < scriptTemplate.length; i++) {
+        const c = scriptTemplate[i]
+        if (c == '<') {
+            res = res.slice(i)
+            break
+        }
+    }
+
+    // Throw out suffix
+    let j = 0
+    for (let i = scriptTemplate.length - 1; i >= 0; i--) {
+        const c = scriptTemplate[i]
+        if (c == '>') {
+            res = res.slice(0, -j)
+            break
+        }
+        j++
     }
 
     return res
