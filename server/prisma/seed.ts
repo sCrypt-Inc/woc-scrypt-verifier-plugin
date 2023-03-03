@@ -46,17 +46,15 @@ const entryData: any = [
         scriptHash:
             '0000000000000000000000000000000000000000000000000000000000000000',
         scryptTSVersion: '0.1.6-beta.7',
-        constrAbiParams: {
+        contractProps: {
             create: [
                 {
-                    pos: 0,
                     name: 'x',
-                    val: '51',
+                    val: '1',
                 },
                 {
-                    pos: 1,
                     name: 'y',
-                    val: '52',
+                    val: '2',
                 },
             ],
         },

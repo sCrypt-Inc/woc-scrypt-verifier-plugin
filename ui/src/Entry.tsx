@@ -9,7 +9,7 @@ import './App.css';
 const apiURL = process.env.REACT_APP_SERVER_URL || configDefault.SERVER_URL;
 
 function TableConstrParams(props: any): JSX.Element {
-  if (props.constrAbiParams.length == 0) {
+  if (props.contractProps.length == 0) {
     return (<div></div>)
   } else {
     return (
@@ -21,7 +21,6 @@ function TableConstrParams(props: any): JSX.Element {
       <table>
         <thead>
           <tr>
-            <th>Position</th>
             <th>Name</th>
             <th>Value</th>
           </tr>
@@ -30,10 +29,9 @@ function TableConstrParams(props: any): JSX.Element {
           {
             (() => {
               let container: any = [];
-              props.constrAbiParams.forEach((val: any) => {
+              props.contractProps.forEach((val: any) => {
                 container.push(
                   <tr>
-                    <td>{val.pos}</td>
                     <td>{val.name}</td>
                     <td>
                       <TextareaAutosize
@@ -123,7 +121,7 @@ function Entry(props: any) {
         })()
       }
       <br />
-      <TableConstrParams constrAbiParams={entryList[selectedEntry].constrAbiParams}/>
+      <TableConstrParams contractProps={entryList[selectedEntry].contractProps}/>
 
       <Link to={newEntryRedirectURL}>
         <button className="submitButton" >Submit for another version</button>

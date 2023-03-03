@@ -18,15 +18,14 @@ model Entry {
   scriptHash String
   scryptTSVersion       String
   timeAdded  DateTime @default(now())
-  constrAbiParams        ConstrAbiParams[]
+  contractProps        ContractProps[]
   src        Src[]
 }
 
-model ConstrAbiParams {
+model ContractProps {
   id      Int    @id @default(autoincrement())
   entry   Entry  @relation(fields: [entryId], references: [id])
   entryId Int
-  pos     Int
   name    String
   val     String
 }

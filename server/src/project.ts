@@ -1,8 +1,32 @@
 import fs from 'fs'
 import path from 'path'
 import os from 'os'
-import { compileContractAsync } from 'scryptlib/dist/utils.js'
 import { execSync } from 'child_process'
+
+export type ContractProp = {
+    name: string
+    val: string
+}
+
+function bigIntReviver(_: string, value: any): any {
+    if (typeof value === 'string') {
+        const bigIntRegex = /^-?\d+n$/
+        if (bigIntRegex.test(value)) {
+            return BigInt(value.slice(0, -1))
+        }
+    }
+    return value
+}
+
+function renameContract(sourceCode: string, contractNameNew: string): string {
+    const match = sourceCode.match(/class\s+([^\s]+)\s+extends\s+SmartContract/)
+    if (!match) {
+        throw new Error('No contract class found in source code.')
+    }
+    const contractNameOld = match[1]
+
+    return sourceCode.replaceAll(contractNameOld, contractNameNew)
+}
 
 function prepareTargetDir(baseDir: string, scryptTSVersion: string): string {
     // Check if dir for this scrypt-ts version already exists.
@@ -46,18 +70,53 @@ function prepareTargetDir(baseDir: string, scryptTSVersion: string): string {
     return target
 }
 
-export default async function getContractJSON(
+export default async function parseAndVerify(
     sourceCode: string,
-    scryptTSVersion: string
-): Promise<object> {
+    scryptTSVersion: string,
+    script: string
+): Promise<ContractProp[]> {
     // TODO: Sandbox!!!
-    // TODO: Make sure to completely remove all generated files, even if
-    //       an exception does occur.
 
     const baseDir = os.tmpdir() // TODO: Make configurable via dotenv
 
     const targetDir = prepareTargetDir(baseDir, scryptTSVersion)
     const srcDir = path.join(targetDir, 'src')
+
+    // Write raw script data
+    const scriptFile = path.join(targetDir, 'contract.script')
+    fs.writeFileSync(scriptFile, script)
+
+    // Rename contract class
+    // TODO: Must be a better way.
+    sourceCode = renameContract(sourceCode, 'Main')
+
+    // Add runner function to source code
+    const RUNNER_SRC = `
+// Call compile method 
+// Read raw script from file and construct contract obj 
+// Serialize to JSON and return to STDOUT 
+function bigIntReplacer(key: string, value: any): any {
+  if (typeof value === 'bigint') {
+    return value.toString();
+  }
+  return value;
+}
+
+
+(async () => { 
+    const oldLog = console.log
+    console.log = () => {}
+    await Main.compile()
+    console.log = oldLog
+    
+    const contract = (Main as any).fromLockingScript('${script}')
+    delete contract['delegateInstance']
+    delete contract['enableUpdateEMC']
+
+    console.log(JSON.stringify(contract, bigIntReplacer))
+})()
+`
+    sourceCode += '\n\n' + RUNNER_SRC
 
     // Write source code
     const srcFile = path.join(srcDir, 'main.ts')
@@ -66,23 +125,18 @@ export default async function getContractJSON(
     // Build TS code.
     execSync('npm run build', { cwd: targetDir })
 
-    // Compile resulting .scrypt file.
-    // TODO: Use compiler binary in node_modules directly or write some code that calls
-    //       compile() function (would even be better).
-    const outDir = path.join(targetDir, 'scrypts', 'src')
-    const scryptFile = path.join(outDir, 'main.scrypt')
-    await compileContractAsync(scryptFile, {
-        sourceMap: true,
-        artifact: true,
-        out: outDir,
-    })
+    // Exec runner script and parse output
+    const runnerRes = execSync('npx ts-node src/main.ts', {
+        cwd: targetDir,
+    }).toString()
+    const contractData = JSON.parse(runnerRes, bigIntReviver)
 
-    const contractJSONFile = path.join(outDir, 'main.json')
-    const contractJSON = JSON.parse(
-        fs.readFileSync(contractJSONFile).toString()
-    )
+    const res: ContractProp[] = []
+    for (const [key, val] of Object.entries(contractData)) {
+        res.push({ name: key, val: val.toString() })
+    }
 
-    return contractJSON
+    return res
 }
 
 const packageJSON = {

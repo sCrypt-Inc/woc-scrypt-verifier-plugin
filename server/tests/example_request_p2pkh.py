@@ -3,7 +3,8 @@ import json
 
 script_hash = 'a388885504161ba5ed2bd6f5e1e526f1fa01503b90fd4f9f9c7700657b991725'
 network = 'test'
-url = 'http://localhost:8001/{}/{}'.format(network, script_hash)
+scrypt_ts_ver = '0.1.7-beta.7'
+url = 'http://localhost:8001/{}/{}?ver={}'.format(network, script_hash, scrypt_ts_ver)
 
 code = '''
 import {
