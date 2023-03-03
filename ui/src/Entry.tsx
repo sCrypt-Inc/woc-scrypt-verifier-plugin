@@ -8,6 +8,54 @@ import './App.css';
 
 const apiURL = process.env.REACT_APP_SERVER_URL || configDefault.SERVER_URL;
 
+function TableConstrParams(props: any): JSX.Element {
+  if (props.constrAbiParams.length == 0) {
+    return (<div></div>)
+  } else {
+    return (
+      <div>
+      <p>
+        <b>Constructor parameters:</b>
+      </p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Position</th>
+            <th>Name</th>
+            <th>Value</th>
+          </tr>
+        </thead>
+        <tbody>
+          {
+            (() => {
+              let container: any = [];
+              props.constrAbiParams.forEach((val: any) => {
+                container.push(
+                  <tr>
+                    <td>{val.pos}</td>
+                    <td>{val.name}</td>
+                    <td>
+                      <TextareaAutosize
+                        className='textInput'
+                        maxRows={3}
+                        value={val.val}
+                        readOnly
+                      />
+                    </td>
+                  </tr>)
+              });
+              return container;
+            })()
+          }
+        </tbody>
+      </table>
+      <br />
+      </div>
+      )
+  }
+}
+
 function Entry(props: any) {
   const { network, scriptHash } = useParams();
 
@@ -31,7 +79,7 @@ function Entry(props: any) {
   return (
     <div>
       <p>
-        ✅ Matching sCrypt code found!
+        ✅ Verified!
       </p>
       <p>
         <b>ScryptTS version:</b><br />
@@ -75,43 +123,8 @@ function Entry(props: any) {
         })()
       }
       <br />
-      <p>
-        <b>Constructor parameters:</b>
-      </p>
+      <TableConstrParams constrAbiParams={entryList[selectedEntry].constrAbiParams}/>
 
-      <table>
-        <thead>
-          <tr>
-            <th>Position</th>
-            <th>Name</th>
-            <th>Value</th>
-          </tr>
-        </thead>
-        <tbody>
-          {
-            (() => {
-              let container: any = [];
-              entryList[selectedEntry].constrAbiParams.forEach((val: any) => {
-                container.push(
-                  <tr>
-                    <td>{val.pos}</td>
-                    <td>{val.name}</td>
-                    <td>
-                      <TextareaAutosize
-                        className='textInput'
-                        maxRows={3}
-                        value={val.val}
-                        readOnly
-                      />
-                    </td>
-                  </tr>)
-              });
-              return container;
-            })()
-          }
-        </tbody>
-      </table>
-      <br />
       <Link to={newEntryRedirectURL}>
         <button className="submitButton" >Submit for another version</button>
       </Link>

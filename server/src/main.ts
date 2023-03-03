@@ -328,6 +328,8 @@ function verify(
     // Interpret pushdata and match with param names.
     const res: ConstrParam[] = []
     const pos = 0
+    console.log(scriptTemplate)
+    console.log(templateData)
     for (let i = 0; i < templateData.length; i += 2) {
         const hexVal = templateData.slice(i, i + 2)
         const intVal = parseInt(hexVal, 16)
@@ -518,12 +520,18 @@ function truncateOpReturn(script: string): string {
 function getTemplateData(script: string, scriptTemplate: string): string {
     let res = script
 
+    // TODO: This assumes all placeholders are always concatenated together
+    //       in one sequence inside the template. Is that always the case?
+
     // Throw out prefix
     for (let i = 0; i < scriptTemplate.length; i++) {
         const c = scriptTemplate[i]
         if (c == '<') {
             res = res.slice(i)
             break
+        }
+        if (i == scriptTemplate.length - 1) {
+            return ''
         }
     }
 
