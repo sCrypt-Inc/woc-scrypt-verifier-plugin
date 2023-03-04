@@ -5,6 +5,7 @@ import { execSync } from 'child_process'
 import Docker from 'dockerode'
 import * as stream from 'stream'
 import concat from 'concat-stream'
+import ts from 'typescript'
 
 const docker = new Docker()
 
@@ -75,16 +76,6 @@ function bigIntReviver(_: string, value: any): any {
     return value
 }
 
-function renameContract(sourceCode: string, contractNameNew: string): string {
-    const match = sourceCode.match(/class\s+([^\s]+)\s+extends\s+SmartContract/)
-    if (!match) {
-        throw new Error('No contract class found in source code.')
-    }
-    const contractNameOld = match[1]
-
-    return sourceCode.replaceAll(contractNameOld, contractNameNew)
-}
-
 function prepareTargetDir(baseDir: string, scryptTSVersion: string): string {
     // Check if dir for this scrypt-ts version already exists.
     // If not, create it.
@@ -127,11 +118,125 @@ function prepareTargetDir(baseDir: string, scryptTSVersion: string): string {
     return target
 }
 
-function checkSourceCode(sourceCode: string) {
-    // Parse out comments for easier checking.
-    // Check if only using scryp-ts imports.
-    // Check if only classes extending SmartContract and SmartContractLib are present.
-    console.log(sourceCode)
+function checkSourceCode(sourceFile: ts.SourceFile): string {
+    let onlyScrypTsImports = true
+    let onlySmartContractClasses = true
+    let onlyImportsAndClasses = true
+
+    let smartContractClassName = undefined
+
+    let smartContractCnt = 0
+
+    ts.forEachChild(sourceFile, (node) => {
+        if (ts.isImportDeclaration(node)) {
+            const moduleSpecifier = node.moduleSpecifier['text']
+            if (!moduleSpecifier.includes('scrypt-ts')) {
+                onlyScrypTsImports = false
+            }
+        } else if (ts.isClassDeclaration(node)) {
+            const baseTypes = node.heritageClauses
+                ?.map((clause) => clause.types)
+                ?.reduce((a, b) => a.concat(b), [])
+            if (
+                !baseTypes?.some((type) => {
+                    const typeName = type.expression['escapedText']
+                    if (typeName === 'SmartContract') {
+                        smartContractCnt += 1
+                        smartContractClassName =
+                            node.name.escapedText.toString()
+                    }
+                    return (
+                        typeName === 'SmartContract' ||
+                        typeName === 'SmartContractLib'
+                    )
+                })
+            ) {
+                onlySmartContractClasses = false
+            }
+        } else if (node.parent == undefined) {
+            if (
+                !ts.isInterfaceDeclaration(node) &&
+                !ts.isTypeAliasDeclaration(node) &&
+                node.kind != 1
+            ) {
+                onlyImportsAndClasses = false
+            }
+        }
+    })
+
+    if (!onlyScrypTsImports) {
+        throw new Error(
+            "The file contains imports from other libraries than 'scrypt-ts'"
+        )
+    }
+
+    if (!onlySmartContractClasses) {
+        throw new Error(
+            "The file contains classes that don't extend 'SmartContract' or 'SmartContractLib'"
+        )
+    }
+
+    if (!onlyImportsAndClasses) {
+        throw new Error(
+            'The source code only allows classes, interface and type alias declarations'
+        )
+    }
+
+    if (smartContractCnt != 1) {
+        throw new Error(
+            'The source code must have a single SmartContract class declaration'
+        )
+    }
+
+    return smartContractClassName
+}
+
+function prepareSourceCode(sourceFile: ts.SourceFile): string {
+    //const transformer: ts.TransformerFactory<ts.SourceFile> = (context) => {
+    //    return (node) => {
+    //        function visit(node: ts.Node): ts.Node {
+    //            if (node.parent == undefined && ts.isClassDeclaration(node)) {
+    //            }
+    //            return ts.visitEachChild(node, visit, context);
+    //        }
+    //        return ts.visitNode(node, visit);
+    //    };
+    //};
+    const transformer: ts.TransformerFactory<ts.SourceFile> = (context) => {
+        return (sourceFile) => {
+            const visitor = (node: ts.Node): ts.Node => {
+                if (node.parent == undefined && ts.isClassDeclaration(node)) {
+                    const exportModifier = ts.factory.createModifier(
+                        ts.SyntaxKind.ExportKeyword
+                    )
+                    return ts.factory.updateClassDeclaration(
+                        node,
+                        undefined,
+                        [exportModifier],
+                        node.name,
+                        undefined,
+                        node.heritageClauses,
+                        node.members
+                    )
+                }
+
+                return ts.visitEachChild(node, visitor, context)
+            }
+
+            return ts.visitNode(sourceFile, visitor)
+        }
+    }
+
+    // Apply the transformer to the source file
+    const result = ts.transform(sourceFile, [transformer])
+
+    // Get the modified source file from the result
+    const transformedSourceFile = result.transformed[0]
+
+    // Serialize the modified source file to source code
+    const printer = ts.createPrinter()
+
+    return printer.printFile(transformedSourceFile)
 }
 
 export default async function parseAndVerify(
@@ -149,18 +254,20 @@ export default async function parseAndVerify(
     fs.writeFileSync(scriptFile, script)
 
     // Check passed source code structure.
-    checkSourceCode(sourceCode)
+    const sourceFile = ts.createSourceFile(
+        'main.ts',
+        sourceCode,
+        ts.ScriptTarget.ES2022
+    )
+    const smartContractClassName = checkSourceCode(sourceFile)
 
-    // Rename contract class
-    // TODO: Must be a better way.
-    sourceCode = renameContract(sourceCode, 'Main')
-
-    // Export Main class
-    sourceCode += '\n\n' + 'export { Main }'
+    // Prepare source code
+    sourceCode = prepareSourceCode(sourceFile)
+    console.log(sourceCode)
 
     // Write runner function file
     const runnerSrc = `
-import { Main } from './main'
+import { ${smartContractClassName} } from './main'
 
 function bigIntReplacer(key: string, value: any): any {
   if (typeof value === 'bigint') {
@@ -175,9 +282,9 @@ function bigIntReplacer(key: string, value: any): any {
     // Serialize to JSON and return to STDOUT 
     const oldLog = console.log
     console.log = () => {}
-    await Main.compile()
+    await ${smartContractClassName}.compile()
     
-    const contract = (Main as any).fromLockingScript('${script}')
+    const contract = (${smartContractClassName} as any).fromLockingScript('${script}')
     delete contract['delegateInstance']
     delete contract['enableUpdateEMC']
 

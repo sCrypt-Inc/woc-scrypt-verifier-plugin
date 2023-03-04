@@ -1,4 +1,5 @@
 import requests
+import time
 import json
 
 script_hash = '90e9df755a22a5c939eb71361d2626022e0babd44bd6684dfa156193ab6476a3'
@@ -52,6 +53,8 @@ response = requests.post(url, data=payload_json, headers=headers)
 # Print the response status code and text
 print(f'POST response status code: {response.status_code}')
 print(f'POST response text: {response.text}')
+
+time.sleep(1)
 
 response = requests.get(url, headers=headers)
 
