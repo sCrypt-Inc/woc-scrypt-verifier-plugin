@@ -22,7 +22,9 @@ services:
       - DATABASE_URL=postgres://postgres:password@db:5432/woc
       - URL_PREFIX=/api
       - SERVER_PORT=8001
+      - DOCKER_HOST=unix:///var/run/docker.sock
     volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
       - /opt/woc-plugin/api-data:/tmp # TODO: Make tmpfs, but need lots more RAM for that
   db:
     image: postgres

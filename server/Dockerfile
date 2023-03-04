@@ -5,6 +5,7 @@ COPY . .
 
 RUN apt-get update && apt-get install -y \
   curl \
+  &&  curl -sSL https://get.docker.com/ | sh \
   && rm -rf /var/lib/apt/lists/*
 RUN npm i
 RUN npm run build
