@@ -5,6 +5,7 @@ import configDefault from './configDefault.json'
 import GridLoader from "react-spinners/GridLoader";
 
 import './App.css';
+import { cursorTo } from 'readline';
 
 const networks: string[] = ['main', 'test']
 
@@ -30,7 +31,16 @@ function New() {
       const response = await fetch(url)
       const data = await response.json()
       const versions = Object.keys(data.versions).reverse()
-      setScryptTSVersionList(versions)
+
+      let cutoffIdx = versions.length - 1
+      versions.find((ver: string, idx: number) => {
+        if (ver.startsWith('0.1.7-beta.6')) {
+          cutoffIdx = idx
+          return true
+        }
+        return false
+      })
+      setScryptTSVersionList(versions.slice(0, cutoffIdx))
       setSelectedOptionScryptTSVersion(versions[0])
     }
     fetchLatestVersions()

@@ -249,7 +249,6 @@ export default async function parseAndVerify(
     scryptTSVersion: string,
     script: string
 ): Promise<ContractProp[]> {
-
     const targetDir = prepareTargetDir(BASE_DIR, scryptTSVersion)
     const srcDir = path.join(targetDir, 'src')
 
