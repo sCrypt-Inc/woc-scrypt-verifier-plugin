@@ -23,9 +23,11 @@ services:
       - URL_PREFIX=/api
       - SERVER_PORT=8001
       - DOCKER_HOST=unix:///var/run/docker.sock
+        # Due to how Docker nesting works BASE_DIR needs to be the same path as on the host:
+      - BASE_DIR=/opt/woc-plugin/api-data
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - /opt/woc-plugin/api-data:/tmp # TODO: Make tmpfs, but need lots more RAM for that
+      - /opt/woc-plugin/api-data:/opt/woc-plugin/api-data
   db:
     image: postgres
     environment:

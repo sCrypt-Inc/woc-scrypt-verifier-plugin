@@ -6,6 +6,11 @@ import Docker from 'dockerode'
 import * as stream from 'stream'
 import concat from 'concat-stream'
 import ts from 'typescript'
+import dotenv from 'dotenv'
+
+dotenv.config()
+
+const BASE_DIR = process.env.BASE_DIR || os.tmpdir()
 
 const docker = new Docker()
 
@@ -244,9 +249,8 @@ export default async function parseAndVerify(
     scryptTSVersion: string,
     script: string
 ): Promise<ContractProp[]> {
-    const baseDir = os.tmpdir() // TODO: Make configurable via dotenv
 
-    const targetDir = prepareTargetDir(baseDir, scryptTSVersion)
+    const targetDir = prepareTargetDir(BASE_DIR, scryptTSVersion)
     const srcDir = path.join(targetDir, 'src')
 
     // Write raw script data
@@ -263,7 +267,6 @@ export default async function parseAndVerify(
 
     // Prepare source code
     sourceCode = prepareSourceCode(sourceFile)
-    console.log(sourceCode)
 
     // Write runner function file
     const runnerSrc = `
@@ -312,8 +315,6 @@ function bigIntReplacer(key: string, value: any): any {
         volumeMapping,
         '/proj'
     )
-    console.log('res!')
-    console.log(runnerRes)
 
     const contractData = JSON.parse(runnerRes, bigIntReviver)
 
