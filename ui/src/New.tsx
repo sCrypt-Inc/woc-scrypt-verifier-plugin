@@ -90,7 +90,7 @@ function New() {
   return (
     <form onSubmit={handleSubmit} className="mainDiv">
       <label>
-        Select scrypt-ts version:<br />
+        Select sCrypt version:<br />
         <select value={scryptTSVersion} onChange={handleDropdownChangeScryptTSVersion}>
           {
             (() => {

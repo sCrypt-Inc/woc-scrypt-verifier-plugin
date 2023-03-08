@@ -80,7 +80,7 @@ function Entry(props: any) {
         ✅ Verified!
       </p>
       <p>
-        <b>ScryptTS version:</b><br />
+        <b>sCrypt version:</b><br />
         <select value={selectedEntry} onChange={handleDropdownChangeScryptTSVersion}>
           {
             (() => {
