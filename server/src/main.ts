@@ -7,6 +7,7 @@ import dotenv from 'dotenv'
 import prettier from 'prettier'
 import axios from 'axios'
 import * as CryptoJS from 'crypto-js'
+import { execSync } from 'child_process'
 
 // TODO: Test with pushdata constructor params.
 // TODO: Test with no constructor params.
@@ -105,6 +106,13 @@ router.post('/:network/:scriptHash', async (req, res) => {
     }
     if (typeof scryptTSVersion !== 'string') {
         return res.status(400).send('Invalid scrypt-ts version.')
+    }
+
+    // Resolve scrypt-ts version in case user passed tag such as "beta".
+    try {
+        scryptTSVersion = resolveTagToVersion('scrypt-ts', scryptTSVersion)
+    } catch (e) {
+        return res.status(400).send(e.message)
     }
 
     // If we already have an entry, then check if the specified
@@ -297,4 +305,18 @@ function getScriptHash(scriptPubKeyHex: string): string {
         CryptoJS.default.SHA256(CryptoJS.default.enc.Hex.parse(scriptPubKeyHex))
     )
     return scriptHash.match(/.{2}/g)?.reverse()?.join('') ?? ''
+}
+
+function resolveTagToVersion(packageName: string, tag: string): string {
+    const errMsg = `Failed to resolve tag "${tag}" for package "${packageName}".`
+    try {
+        const cmdOutput = execSync(`npm show ${packageName}@${tag} version`)
+        const version = cmdOutput.toString().trim()
+        if (version == '') {
+            throw new Error(errMsg)
+        }
+        return version
+    } catch (e) {
+        throw new Error(errMsg)
+    }
 }

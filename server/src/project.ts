@@ -332,7 +332,7 @@ const packageJSON = {
         build: 'tsc',
     },
     dependencies: {
-        'scrypt-ts': 'beta',
+        'scrypt-ts': undefined,
     },
     devDependencies: {
         '@types/node': '^18.11.0',
