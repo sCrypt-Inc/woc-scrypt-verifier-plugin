@@ -160,7 +160,7 @@ router.post('/:network/:scriptHash', async (req, res) => {
     try {
         // Add new entry to DB and respond normally.
         const codePretty = prettier.format(body.code, prettierOpt)
-        const newEntry = addEntry(
+        const newEntry = await addEntry(
             network,
             scriptHash,
             scryptTSVersion,

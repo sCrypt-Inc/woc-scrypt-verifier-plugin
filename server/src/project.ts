@@ -268,7 +268,7 @@ export default async function parseAndVerify(
     sourceCode = prepareSourceCode(sourceFile)
 
     // Write runner function file
-    const runnerSrc = `
+    const runnerSrc = `import { readFileSync } from 'fs'
 import { ${smartContractClassName} } from './main'
 
 function bigIntReplacer(key: string, value: any): any {
@@ -286,7 +286,8 @@ function bigIntReplacer(key: string, value: any): any {
     console.log = () => {}
     await ${smartContractClassName}.compile()
     
-    const contract = (${smartContractClassName} as any).fromLockingScript('${script}')
+    const script = readFileSync('contract.script').toString()
+    const contract = (${smartContractClassName} as any).fromLockingScript(script)
     delete contract['delegateInstance']
     delete contract['enableUpdateEMC']
 
