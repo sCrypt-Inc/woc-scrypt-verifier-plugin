@@ -125,9 +125,9 @@ router.post('/:network/:scriptHash', async (req, res) => {
     )
     if (entries.length > 0) {
         return res
-            .status(400)
+            .status(409)
             .send(
-                'Output already has verified code for the specified scrypt-ts version.'
+                'Script hash already verified for chosen sCrypt version.'
             )
     }
 
