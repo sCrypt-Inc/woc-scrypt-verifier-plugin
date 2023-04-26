@@ -126,9 +126,7 @@ router.post('/:network/:scriptHash', async (req, res) => {
     if (entries.length > 0) {
         return res
             .status(409)
-            .send(
-                'Script hash already verified for chosen sCrypt version.'
-            )
+            .send('Script hash already verified for chosen sCrypt version.')
     }
 
     // Check body structure.

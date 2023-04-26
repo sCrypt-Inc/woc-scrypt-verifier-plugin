@@ -162,6 +162,7 @@ function checkSourceCode(sourceFile: ts.SourceFile): string {
             if (
                 !ts.isInterfaceDeclaration(node) &&
                 !ts.isTypeAliasDeclaration(node) &&
+                node.kind != 240 &&
                 node.kind != 1
             ) {
                 onlyImportsAndClasses = false
