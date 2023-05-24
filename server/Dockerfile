@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y \
   && rm -rf /var/lib/apt/lists/*
 RUN npm i
 RUN npm run build
-RUN curl -Ls https://scrypt.io/setup | sh -s -- -f
+RUN ./scryptc-setup.sh -f
 
 #ENV NODE_ENV production
 #EXPOSE 5001
