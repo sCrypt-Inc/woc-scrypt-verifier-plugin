@@ -2,44 +2,36 @@ import requests
 import json
 import time
 
-script_hash = 'da3cd38dbf67d44005e8f0dd677f3b048ebf9620cce81e1171f25e4287fd7e7f'
+script_hash = '897f4a5dcd4e21fa9016b7aa92139e7969d6fd5f7f335a526095d54b70a49b4b'
 network = 'test'
-scrypt_ts_ver = '0.1.7-beta.7'
+scrypt_ts_ver = '1.3.0'
 url = 'http://localhost:8001/{}/{}?ver={}'.format(network, script_hash, scrypt_ts_ver)
 
 code = '''
-import { method, prop, SmartContract, assert, bsv, UTXO } from 'scrypt-ts'
+import {
+    assert,
+    ByteString,
+    method,
+    prop,
+    sha256,
+    Sha256,
+    SmartContract,
+} from 'scrypt-ts'
 
-class MyProject extends SmartContract {
+export class Demo extends SmartContract {
     @prop()
-    x: bigint
+    hash: Sha256
 
-    @prop()
-    y: bigint
-
-    constructor(x: bigint, y: bigint) {
-        super(x, y)
-        this.x = x
-        this.y = y
+    constructor(hash: Sha256) {
+        super(...arguments)
+        this.hash = hash
     }
 
     @method()
-    sum(a: bigint, b: bigint): bigint {
-        return a + b
+    public unlock(message: ByteString) {
+        assert(sha256(message) == this.hash, 'Hash does not match')
     }
-
-    @method()
-    public add(z: bigint) {
-        assert(z == this.sum(this.x, this.y))
-    }
-
-    @method()
-    public sub(z: bigint) {
-        assert(z == this.x - this.y)
-    }
-
 }
-
 '''
 
 # Define the data to be sent in the request body

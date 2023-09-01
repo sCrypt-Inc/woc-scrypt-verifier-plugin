@@ -2,38 +2,47 @@ import requests
 import json
 import time
 
-script_hash = 'e759cd2c82f08c905888d66e472cf6bd01969974dbd5646802adab45fe5fbe1b'
+script_hash = 'da215cab185816503b189781b48e11dff1177d20dd82e00907ebd50b46fbe38d'
 network = 'test'
 scrypt_ts_ver = '1.3.4'
 url = 'http://localhost:8001/{}/{}?ver={}'.format(network, script_hash, scrypt_ts_ver)
 
 code = '''
 import {
-    assert,
-    hash160,
     method,
     prop,
-    PubKey,
+    SmartContract,
+    assert,
     PubKeyHash,
     Sig,
-    SmartContract,
+    PubKey,
+    hash160,
 } from 'scrypt-ts'
 
-export class P2PKH extends SmartContract {
-    // Address of the recipient.
+export class Lockup extends SmartContract {
     @prop()
-    readonly pubKeyHash: PubKeyHash
+    lockUntilHeight: bigint
 
-    constructor(pubKeyHash: PubKeyHash) {
+    @prop()
+    pkhash: PubKeyHash
+
+    constructor(pkhash: PubKeyHash, lockUntilHeight: bigint) {
         super(...arguments)
-        this.pubKeyHash = pubKeyHash
+        assert(lockUntilHeight < 500000000, 'must use blockHeight locktime')
+        this.lockUntilHeight = lockUntilHeight
+        this.pkhash = pkhash
     }
 
     @method()
-    public unlock(sig: Sig, pubkey: PubKey) {
-        // Check if the passed public key belongs to the specified address.
+    public redeem(sig: Sig, pubkey: PubKey) {
+        assert(this.ctx.locktime < 500000000, 'must use blockHeight locktime')
+        assert(this.ctx.sequence < 0xffffffff, 'must use sequence locktime')
         assert(
-            hash160(pubkey) == this.pubKeyHash,
+            this.ctx.locktime >= this.lockUntilHeight,
+            'lockUntilHeight not reached'
+        )
+        assert(
+            hash160(pubkey) == this.pkhash,
             'public key hashes are not equal'
         )
         // Check signature validity.

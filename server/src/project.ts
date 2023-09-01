@@ -49,6 +49,9 @@ async function runCommandInContainer(
             // Remove the container
             return container.remove()
         })
+        .catch((error) => {
+            console.error('Error:', error)
+        })
 
     if (output.StatusCode != 0) {
         throw new Error('Error while parsing script.')
@@ -86,8 +89,9 @@ function prepareTargetDir(baseDir: string, scryptTSVersion: string): string {
     // If not, create it.
     const target = path.join(baseDir, 'woc-plugin_' + scryptTSVersion)
     const srcDir = path.join(target, 'src')
+    const contractsDir = path.join(srcDir, 'contracts')
     if (!fs.existsSync(target)) {
-        fs.mkdirSync(srcDir, { recursive: true })
+        fs.mkdirSync(contractsDir, { recursive: true })
 
         // Apply scrypt-ts version.
         const packageJSONRightVer = Object.assign({}, packageJSON)
@@ -110,11 +114,11 @@ function prepareTargetDir(baseDir: string, scryptTSVersion: string): string {
     } else {
         // Clean up.
         // TODO: Maybe make this a script in package.json?
-        fs.rmSync(srcDir, { recursive: true, force: true })
-        fs.mkdirSync(srcDir)
+        fs.rmSync(contractsDir, { recursive: true, force: true })
+        fs.mkdirSync(contractsDir, { recursive: true })
 
-        const scryptsDir = path.join(target, 'scrypts')
-        fs.rmSync(scryptsDir, { recursive: true, force: true })
+        const artifactsDir = path.join(target, 'artifacts')
+        fs.rmSync(artifactsDir, { recursive: true, force: true })
 
         const distDir = path.join(target, 'dist')
         fs.rmSync(distDir, { recursive: true, force: true })
@@ -252,6 +256,7 @@ export default async function parseAndVerify(
 ): Promise<ContractProp[]> {
     const targetDir = prepareTargetDir(BASE_DIR, scryptTSVersion)
     const srcDir = path.join(targetDir, 'src')
+    const contractsDir = path.join(srcDir, 'contracts')
 
     // Write raw script data
     const scriptFile = path.join(targetDir, 'contract.script')
@@ -289,18 +294,20 @@ function bigIntReplacer(key: string, value: any): any {
     
     const script = readFileSync('contract.script').toString()
     const contract = (${smartContractClassName} as any).fromLockingScript(script)
+
     delete contract['delegateInstance']
     delete contract['enableUpdateEMC']
+    delete contract['_txBuilders']
 
     console.log = oldLog
     console.log(JSON.stringify(contract, bigIntReplacer))
 })()
 `
-    const runnerFile = path.join(srcDir, 'runner.ts')
+    const runnerFile = path.join(contractsDir, 'runner.ts')
     fs.writeFileSync(runnerFile, runnerSrc)
 
     // Write source code
-    const srcFile = path.join(srcDir, 'main.ts')
+    const srcFile = path.join(contractsDir, 'main.ts')
     fs.writeFileSync(srcFile, sourceCode)
 
     // Build TS code.
@@ -308,7 +315,8 @@ function bigIntReplacer(key: string, value: any): any {
 
     // Exec runner script and parse output
     const imageName = 'node:19.6.1-buster'
-    const command = 'npx --no-notify --no-update-notifier ts-node src/runner.ts'
+    const command =
+        'npx scrypt-cli compile > /dev/null 2>&1 && npx --no-notify --no-update-notifier ts-node src/contracts/runner.ts'
     const volumeMapping: VolumeMapping = { source: targetDir, target: '/proj' }
     const runnerRes = await runCommandInContainer(
         imageName,
@@ -335,34 +343,37 @@ const packageJSON = {
     },
     dependencies: {
         'scrypt-ts': undefined,
+        'scrypt-cli': 'latest',
     },
     devDependencies: {
-        '@types/node': '^18.11.0',
-        typescript: '=4.8.4',
-        rimraf: '^3.0.2',
+        '@types/node': '^18.11.10',
         'ts-node': '^10.9.1',
+        typescript: '^5.1.6',
     },
 }
 
 const tsconfigJSON = {
     compilerOptions: {
-        target: 'es2021',
-        lib: ['es2021'],
-        experimentalDecorators: true,
-        module: 'commonjs',
-        rootDir: './',
-        moduleResolution: 'node',
-        outDir: './dist',
-        esModuleInterop: true,
-        skipLibCheck: true,
+        /* Language and Environment */
+        target: 'ES2020' /* Set the JavaScript language version for emitted JavaScript and include compatible library declarations. */,
+        lib: [
+            'ES2020',
+        ] /* Specify a set of bundled library declaration files that describe the target runtime environment. */,
+        experimentalDecorators:
+            true /* Enable experimental support for TC39 stage 2 draft decorators. */,
+        /* Modules */
+        module: 'commonjs' /* Specify what module code is generated. */,
+        moduleResolution:
+            'node' /* Specify how TypeScript looks up a file from a given module specifier. */,
+        outDir: './dist' /* Specify an output folder for all emitted files. */,
+        esModuleInterop:
+            true /* Emit additional JavaScript to ease support for importing CommonJS modules. This enables 'allowSyntheticDefaultImports' for type compatibility. */,
+        /* Type Checking */
+        strict: false /* Enable all strict type-checking options. */,
+        skipLibCheck: true /* Skip type checking all .d.ts files. */,
         sourceMap: true,
-        plugins: [
-            {
-                transform: 'scrypt-ts/dist/transformation/transformer',
-                outDir: './scrypts',
-                transformProgram: true,
-            },
-        ],
+        declaration: true,
+        resolveJsonModule: true,
     },
     include: ['src/**/*.ts'],
 }

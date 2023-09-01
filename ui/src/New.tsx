@@ -34,7 +34,7 @@ function New() {
 
       let cutoffIdx = versions.length - 1
       versions.find((ver: string, idx: number) => {
-        if (ver.startsWith('0.1.7-beta.6')) {
+        if (ver.startsWith('1.3.0')) {
           cutoffIdx = idx
           return true
         }

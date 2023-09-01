@@ -4,7 +4,7 @@ import json
 
 script_hash = '90e9df755a22a5c939eb71361d2626022e0babd44bd6684dfa156193ab6476a3'
 network = 'test'
-scrypt_ts_ver = '0.1.7-beta.7'
+scrypt_ts_ver = '1.3.4'
 url = 'http://localhost:8001/{}/{}?ver={}'.format(network, script_hash, scrypt_ts_ver)
 
 code = '''
