@@ -126,6 +126,13 @@ function Entry(props: any) {
       <Link to={newEntryRedirectURL}>
         <button className="submitButton" >Submit for another version</button>
       </Link>
+      
+      <footer className="plugin-footer">
+        <p>If you encounter a problem with this plugin, 
+          please <a href="https://github.com/sCrypt-Inc/woc-scrypt-verifier-plugin/issues" target="_blank" rel="noopener noreferrer">
+            submit an issue
+          </a> under our GitHub project.</p>
+      </footer>
     </div>
   );
 }

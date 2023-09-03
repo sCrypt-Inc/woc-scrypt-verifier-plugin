@@ -128,6 +128,13 @@ function New() {
         data-testid="loader"
       />
       {errMsg && <div className='error'>{errMsg}</div>}
+
+      <footer className="plugin-footer">
+        <p>If you encounter a problem with this plugin, 
+          please <a href="https://github.com/sCrypt-Inc/woc-scrypt-verifier-plugin/issues" target="_blank" rel="noopener noreferrer">
+            submit an issue
+          </a> under our GitHub project.</p>
+      </footer>
     </form>
   );
 }

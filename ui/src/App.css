@@ -166,3 +166,11 @@ td:nth-child(3)::-webkit-scrollbar-track {
 td:nth-child(3)::-webkit-scrollbar-thumb {
   background-color: #888;
 }
+
+.plugin-footer {
+    font-size: 0.85rem; /* this makes the font size smaller; adjust as needed */
+}
+
+.plugin-footer p {
+    color: #888; /* this is a gray color; adjust as needed */
+}
