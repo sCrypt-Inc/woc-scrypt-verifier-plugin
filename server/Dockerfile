@@ -1,4 +1,4 @@
-FROM node:19.6.1-buster
+FROM node:19-bullseye
 
 WORKDIR /app
 COPY . .

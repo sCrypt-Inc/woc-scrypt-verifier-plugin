@@ -2,72 +2,12 @@ import fs from 'fs'
 import path from 'path'
 import os from 'os'
 import { execSync } from 'child_process'
-import Docker from 'dockerode'
-import * as stream from 'stream'
-import concat from 'concat-stream'
 import ts from 'typescript'
 import dotenv from 'dotenv'
 
 dotenv.config()
 
 const BASE_DIR = process.env.BASE_DIR || os.tmpdir()
-
-const docker = new Docker()
-
-interface VolumeMapping {
-    source: string
-    target: string
-}
-
-async function runCommandInContainer(
-    imageName: string,
-    command: string,
-    volumeMapping: VolumeMapping,
-    workDir: string
-): Promise<string> {
-    const createOptions = {
-        Image: imageName,
-        AttachStdin: false,
-        AttachStdout: true,
-        AttachStderr: true,
-        Tty: true,
-        HostConfig: {
-            Binds: [`${volumeMapping.source}:${volumeMapping.target}`],
-            NetworkMode: 'none',
-        },
-        WorkingDir: workDir,
-        Cmd: ['/bin/sh', '-c', command],
-    }
-
-    const outputStream = new stream.PassThrough()
-    let output: any
-    await docker
-        .run(imageName, createOptions.Cmd, outputStream, createOptions)
-        .then(function (data) {
-            output = data[0]
-            const container = data[1]
-            // Remove the container
-            return container.remove()
-        })
-        .catch((error) => {
-            console.error('Error:', error)
-        })
-
-    if (output.StatusCode != 0) {
-        throw new Error('Error while parsing script.')
-    }
-
-    // Use concat-stream to convert the output stream to a string
-    const result = await new Promise<string>((resolve, _) => {
-        outputStream.pipe(
-            concat((data: Buffer) => {
-                resolve(data.toString())
-            })
-        )
-    })
-
-    return result
-}
 
 export type ContractProp = {
     name: string
@@ -285,12 +225,13 @@ function bigIntReplacer(key: string, value: any): any {
 }
 
 (async () => { 
+  try {
     // Call compile method 
     // Read raw script from file and construct contract obj 
     // Serialize to JSON and return to STDOUT 
     const oldLog = console.log
     console.log = () => {}
-    await ${smartContractClassName}.compile()
+    await ${smartContractClassName}.loadArtifact()
     
     const script = readFileSync('contract.script').toString()
     const contract = (${smartContractClassName} as any).fromLockingScript(script)
@@ -301,6 +242,10 @@ function bigIntReplacer(key: string, value: any): any {
 
     console.log = oldLog
     console.log(JSON.stringify(contract, bigIntReplacer))
+  } catch (error) {
+    console.error('An error occurred:', error);
+    process.exit(1); // Optionally exit the process for a clean shutdown
+  }
 })()
 `
     const runnerFile = path.join(contractsDir, 'runner.ts')
@@ -310,36 +255,36 @@ function bigIntReplacer(key: string, value: any): any {
     const srcFile = path.join(contractsDir, 'main.ts')
     fs.writeFileSync(srcFile, sourceCode)
 
-    // Build TS code.
-    execSync('npm run build', { cwd: targetDir })
+    // Build TS code and compile contract.
+    execSync('npm run compile', { cwd: targetDir })
 
     // Exec runner script and parse output
-    const imageName = 'node:19.6.1-buster'
     const command =
         'npx scrypt-cli compile > /dev/null 2>&1 && npx --no-notify --no-update-notifier ts-node src/contracts/runner.ts'
-    const volumeMapping: VolumeMapping = { source: targetDir, target: '/proj' }
-    const runnerRes = await runCommandInContainer(
-        imageName,
-        command,
-        volumeMapping,
-        '/proj'
-    )
+    try {
+        const runnerRes = execSync(command, {
+            cwd: targetDir,
+            encoding: 'utf-8',
+        })
+        const contractData = JSON.parse(runnerRes, bigIntReviver)
 
-    const contractData = JSON.parse(runnerRes, bigIntReviver)
+        const res: ContractProp[] = []
+        for (const [key, val] of Object.entries(contractData)) {
+            res.push({ name: key, val: val.toString() })
+        }
 
-    const res: ContractProp[] = []
-    for (const [key, val] of Object.entries(contractData)) {
-        res.push({ name: key, val: val.toString() })
+        return res
+    } catch (error) {
+        console.error('Error executing command:', error)
+        return []
     }
-
-    return res
 }
 
 const packageJSON = {
     name: 'tmp',
     version: '0.1.0',
     scripts: {
-        build: 'tsc',
+        compile: 'tsc && npx -y scrypt-cli compile',
     },
     dependencies: {
         'scrypt-ts': undefined,

@@ -41,9 +41,9 @@ is_user_root () { [ "$(id -u)" -eq 0 ]; }
 # Detect platform.
 UNAME=$(uname)
 if [ "$UNAME" = "Linux" -o "$UNAME" = "FreeBSD" ]; then
-    URL_POSTFIX="Linux"
+    URL_POSTFIX="Linux-x86_64"
 elif [ "$UNAME" = "Darwin" ]; then
-    URL_POSTFIX="macOS"
+    URL_POSTFIX="macOS-x86_64"
 else
     echo "OS type \"$UNAME\" not supported." && exit 1
 fi
@@ -52,6 +52,7 @@ fi
 DL_URL="https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/releases/download/${GITHUB_TAG}/scryptc-${COMPILER_VERSION}-${URL_POSTFIX}"
 if [ $(curl -o /dev/null -s -w "%{http_code}\n" $DL_URL) = "404" ]; then
     echo  "Version not found: $GITHUB_TAG"
+    echo  "$DL_URL"
     exit 1
 fi
 
